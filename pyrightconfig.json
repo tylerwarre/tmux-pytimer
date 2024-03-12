@@ -1,0 +1,4 @@
+{
+    "venvPath": "~/.tmux/",
+    "venv": "tmux-venv"
+}
