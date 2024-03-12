@@ -4,7 +4,7 @@ import urllib3
 import argparse
 from timers import timer
 
-# TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once
+# TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
 
 def main():
     parser = argparse.ArgumentParser()
@@ -12,7 +12,6 @@ def main():
     parser.add_argument('--action', help="Specify the message you would like to display")
     args = parser.parse_args()
 
-    init_logging()
     urllib3.disable_warnings()
 
     my_timer = timer.PasswordSpray()
