@@ -27,8 +27,8 @@ def get_terminal_size():
     return term_height, term_width
 
 
-def message_create(msg):
-    cmd = ["/usr/local/bin/tmux", "display-message", msg]
+def message_create(msg, delay=5000):
+    cmd = ["/usr/local/bin/tmux", "display-message", "-d", f"{delay}", msg]
     subprocess.run(cmd)
 
     return 0
