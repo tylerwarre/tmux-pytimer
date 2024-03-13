@@ -27,6 +27,13 @@ def get_terminal_size():
     return term_height, term_width
 
 
+def message_create(msg):
+    cmd = ["/usr/local/bin/tmux", "display-message", msg]
+    subprocess.run(cmd)
+
+    return 0
+
+
 def popup_create(title, msg):
     term_height, term_width = get_terminal_size()
     if term_height % 2 == 0:
@@ -39,7 +46,7 @@ def popup_create(title, msg):
     term_width = int(term_width/2) + 1
     vert_padding = '\n'*(int((term_height/2)) - 1)
 
-    cmd = f"/usr/local/bin/tmux display-popup -S fg=#d79921,align=centre -h {term_height} -w {term_width} -T"
+    cmd = f"/usr/local/bin/tmux display-popup -s fg=#d79921,align=centre -h {term_height} -w {term_width} -t"
     cmd = cmd.split(' ')
     cmd.append(f"{title}")
     cmd.append(f"echo -n '{vert_padding}{msg.center(term_width)}'")
