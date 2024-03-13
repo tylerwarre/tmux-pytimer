@@ -15,11 +15,15 @@ class TimerInterface:
         raise NotImplementedError()
 
     @property
-    def start_complete(self) -> bool:
+    def time_work(self) -> int:
         raise NotImplementedError()
 
     @property
-    def time_work(self) -> int:
+    def time_start(self) -> int:
+        raise NotImplementedError()
+
+    @property
+    def time_left(self) -> int:
         raise NotImplementedError()
 
     @property
@@ -34,30 +38,30 @@ class TimerInterface:
     def notify(self) -> bool:
         raise NotImplementedError()
 
+    @property
+    def state(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def cmds(self) -> list:
+        raise NotImplementedError()
+
     @abstractmethod
     def gen_menu(self):
-        pass
-    
+        raise NotImplementedError()
+
     @abstractmethod
     def read_status(self):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def write_status(self):
-        pass
-
-    @abstractmethod
-    def pause(self):
-        pass
-
-    @abstractmethod
-    def resume(self):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def start(self):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def stop(self):
-        pass
+        raise NotImplementedError()
