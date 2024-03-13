@@ -1,4 +1,4 @@
-#!/home/m83393/.tmux/tmux-venv/bin python3
+#!/home/m83393/.tmux/tmux-venv/bin/python3
 
 import os
 import socket

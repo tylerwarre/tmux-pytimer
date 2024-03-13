@@ -1,10 +1,18 @@
+#!/home/m83393/.tmux/tmux-venv/bin/python3
+
 import os
 import logging
 import socket
 import datetime
+import signal
 from pytimer.pomodoro import PomodoroTimer
 
 VALID_TIMERS = []
+
+def signal_handler(sig, frame):
+    logging.info("Received SIGINT. Quiting...")
+    os.unlink("/tmp/tmux-pytimer/daemon/pytimer.sock")
+    os._exit(0)
 
 def init_logging(log_level=logging.INFO):
     if os.path.exists("/tmp/tmux-pytimer/daemon/") != True:
@@ -24,6 +32,7 @@ def init_logging(log_level=logging.INFO):
 
 def main():
     init_logging()
+    signal.signal(signal.SIGINT, signal_handler)
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
     pomodoro = PomodoroTimer()
