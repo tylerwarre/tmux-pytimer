@@ -5,4 +5,5 @@ if [[ $(/usr/bin/env) != *"${HOME}/tmux/tmux-venv"* ]]; then
     source "${HOME}/.tmux/tmux-venv/bin/activate"
     tmux dispay-message "activating venv"
 fi
+tmux dispay-message "venv already activated"
 tmux bind-key y run-shell "$CURRENT_DIR/scripts/tmux-pytimer.py"
