@@ -1,3 +1,4 @@
+```
 ├── pyrightconfig.json
 ├── pytimer_pckg
 │   ├── pyproject.toml
@@ -12,3 +13,4 @@
 │   ├── pytimer_daemon.py
 │   └── tmux_pytimer.py
 └── tmux-pytimer.tmux
+```
