@@ -1,4 +1,4 @@
-#!/home/m83393/.tmux/tmux-venv/bin/python4
+#!/home/m83393/.tmux/tmux-venv/bin/python3
 
 import os
 import socket
@@ -11,7 +11,7 @@ import pytimer.tmux_helper as tmux_helper
 
 # TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
 
-def send_daemon_cmd(cmd, timer):
+def send_daemon_cmd(cmd, timer=None):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
     if not os.path.exists(socket_path):
@@ -24,7 +24,10 @@ def send_daemon_cmd(cmd, timer):
     try:
         client.connect(socket_path)
 
-        message = f"LIST"
+        if timer == None:
+            message = f"{cmd}"
+        else:
+            message = f"{cmd} {timer}"
         client.sendall(message.encode())
 
         response = client.recv(1024)
@@ -51,7 +54,7 @@ def main():
     # my_timer = timer.PasswordSpray()
     # my_timer.gen_menu()
 
-    send_daemon_cmd("START", "PasswordSpray")
+    send_daemon_cmd("LIST")
 
     return 0
 
