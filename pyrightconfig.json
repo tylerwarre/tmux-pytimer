@@ -1,4 +1,4 @@
 {
-    "venvPath": "~/.tmux/",
+    "venvPath": "/home/m83393/.tmux/",
     "venv": "tmux-venv"
 }
