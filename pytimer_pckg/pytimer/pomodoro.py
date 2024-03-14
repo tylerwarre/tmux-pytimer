@@ -20,6 +20,7 @@ class PomodoroTimer(TimerInterface):
         self._status_done = status_done
         self._notify = notify
         self._cmds = cmds
+        self._is_enabled = False
         if state == "idle" and self.start_complete:
             self._state = "done"
         else:
@@ -77,7 +78,11 @@ class PomodoroTimer(TimerInterface):
 
     @property
     def cmds(self) -> list:
-        raise self._cmds
+        return self._cmds
+
+    @property
+    def is_enabled(self) -> bool:
+        return self._is_enabled
 
     @property
     def state(self) -> str:
@@ -102,7 +107,7 @@ class PomodoroTimer(TimerInterface):
         pass
 
     def resume(self):
-        raise NotImplementedError()
+        pass
 
     def start(self):
         pass
@@ -112,7 +117,7 @@ class PomodoroTimer(TimerInterface):
     
     def read_status(self):
         try:
-            with open(f"/tmp/tmux-pytimers/{self.name}.json", "r") as f:
+            with open(f"/tmp/tmux-pytimer/{self.name}.json", "r") as f:
                 status = json.load(f)
         except:
             raise Exception(f"Unable to access {self.name} status file")
@@ -126,7 +131,7 @@ class PomodoroTimer(TimerInterface):
 
     def write_status(self):
         try:
-            with open(f"/tmp/tmux-pytimers/{self.name}.json", "w+") as f:
+            with open(f"/tmp/tmux-pytimer/{self.name}.json", "w+") as f:
                 status = {
                     "time_start": self.time_start,
                     "time_left": self.time_left,

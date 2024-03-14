@@ -1,4 +1,4 @@
-#!/home/m83393/.tmux/tmux-venv/bin/python3
+#!/home/m83393/.tmux/tmux-venv/bin/python4
 
 import os
 import socket
@@ -19,15 +19,26 @@ def send_daemon_cmd(cmd, timer):
         return
 
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client.connect(socket_path)
+    client.settimeout(3)
 
-    message = f"{cmd} {timer}"
-    client.sendall(message.encode())
+    try:
+        client.connect(socket_path)
 
-    response = client.recv(1024)
-    logging.info(f"Received date: {response.decode()}")
+        message = f"LIST"
+        client.sendall(message.encode())
 
-    client.close()
+        response = client.recv(1024)
+        logging.info(f"Received date: {response.decode()}")
+
+        client.close()
+    except TimeoutError:
+        tmux_helper.message_create("Timeout while waiting for ACK from daemon")
+    except ConnectionRefusedError:
+        tmux_helper.message_create("Socket is not listening. Has the daemon started?")
+    except Exception as e:
+        tmux_helper.message_create(f"{e.__class__.__name__}: Unable to connect to socket")
+
+    return
 
 def main():
     # parser = argparse.ArgumentParser()

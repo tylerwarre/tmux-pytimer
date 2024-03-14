@@ -46,6 +46,10 @@ class TimerInterface:
     def cmds(self) -> list:
         raise NotImplementedError()
 
+    @property
+    def is_enabled(self) -> bool:
+        raise NotImplementedError()
+
     @abstractmethod
     def gen_menu(self):
         raise NotImplementedError()
