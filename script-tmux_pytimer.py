@@ -11,7 +11,7 @@ import pytimer.tmux_helper as tmux_helper
 
 # TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
 
-def send_daemon_cmd(cmd, timer):
+def send_daemon_cmd(cmd, timer=None):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
     if not os.path.exists(socket_path):
@@ -19,15 +19,29 @@ def send_daemon_cmd(cmd, timer):
         return
 
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client.connect(socket_path)
+    client.settimeout(3)
 
-    message = f"{cmd} {timer}"
-    client.sendall(message.encode())
+    try:
+        client.connect(socket_path)
 
-    response = client.recv(1024)
-    logging.info(f"Received date: {response.decode()}")
+        if timer == None:
+            message = f"{cmd}"
+        else:
+            message = f"{cmd} {timer}"
+        client.sendall(message.encode())
 
-    client.close()
+        response = client.recv(1024)
+        logging.info(f"Received date: {response.decode()}")
+
+        client.close()
+    except TimeoutError:
+        tmux_helper.message_create("Timeout while waiting for ACK from daemon")
+    except ConnectionRefusedError:
+        tmux_helper.message_create("Socket is not listening. Has the daemon started?")
+    except Exception as e:
+        tmux_helper.message_create(f"{e.__class__.__name__}: Unable to connect to socket")
+
+    return
 
 def main():
     # parser = argparse.ArgumentParser()
@@ -40,7 +54,7 @@ def main():
     # my_timer = timer.PasswordSpray()
     # my_timer.gen_menu()
 
-    send_daemon_cmd("START", "PasswordSpray")
+    send_daemon_cmd("LIST")
 
     return 0
 
