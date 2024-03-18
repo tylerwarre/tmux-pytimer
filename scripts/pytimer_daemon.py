@@ -10,11 +10,11 @@ from pytimer import tmux_helper
 from pytimer.pomodoro import PomodoroTimer
 
 class PyTimerDaemon:
-    CMDS = ["LIST", "STOP"]
+    CMDS = ["LIST"]
     PATH = "/tmp/tmux-pytimer/daemon"
 
     def __init__(self):
-        self.init_logging()
+        self.init_logging(log_level=logging.DEBUG)
 
         if os.path.exists(f"{self.PATH}/pytimer.sock"):
             self.check_sock_alive(f"{self.PATH}/pytimer.sock")
@@ -62,10 +62,9 @@ class PyTimerDaemon:
 
 
     def handle_daemon_command(self, cmd):
+        logging.info(f"Received daemon command: {cmd['action']}")
         if cmd["action"] == "LIST":
             self.daemon_list()
-        elif cmd["action"] == "STOP":
-            self.daemon_stop()
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
             return
@@ -75,9 +74,9 @@ class PyTimerDaemon:
         options = []
         for timer in list(self.timers.values()):
             if timer.is_enabled:
-                options.append(tmux_helper.menu_add_option(f"* {timer.name}", "", f"run-shell {tmux_helper.get_plugin_dir()}/tmux_pytimer.py MENU {timer}"))
+                options.append(tmux_helper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
             else:
-                options.append(tmux_helper.menu_add_option(f"  {timer.name}", "", f"run-shell {tmux_helper.get_plugin_dir()}/tmux_pytimer.py MENU {timer}"))
+                options.append(tmux_helper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
 
         tmux_helper.menu_create("Timers", "R", "S", options)
 
@@ -92,7 +91,12 @@ class PyTimerDaemon:
 
 
     def handle_timer_command(self, cmd):
-        pass
+        logging.info(f"Received timer command: {cmd['action']} for {cmd['timer']}")
+        if cmd["action"] == "MENU":
+            self.timers[cmd['timer']].gen_menu()
+        else:
+            logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
+            return
 
 
     def validate_command(self, data):

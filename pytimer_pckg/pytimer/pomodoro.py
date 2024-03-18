@@ -7,7 +7,7 @@ class PomodoroTimer(TimerInterface):
                  time_break_short=5, time_break_long=60, time_start=0, time_left=0, 
                  status_work="#[fg=#282828]#[bg=#427b58]#[bold] ",
                  status_done="#[fg=#282828]#[bg=#427b58]#[bold] ", notify=True,
-                 cmds=["ACK", "START", "TERM", "PAUSE", "RESUME"], state="idle"):
+                 cmds=["ACK", "MENU", "START", "TERM", "PAUSE", "RESUME"], state="idle"):
         self._name = name
         self._priority = priority
         self._start_complete = start_complete

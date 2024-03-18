@@ -44,17 +44,12 @@ def send_daemon_cmd(cmd, timer=None):
     return
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--timer', help="Specify the name of the timer the command refers to")
-    # parser.add_argument('--action', help="Specify the message you would like to display")
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--timer', help="Specify the name of the timer the command refers to")
+    parser.add_argument('cmd', help="Specify the command you would like to perform")
+    args = parser.parse_args()
 
-    # urllib3.disable_warnings()
-
-    # my_timer = timer.PasswordSpray()
-    # my_timer.gen_menu()
-
-    send_daemon_cmd("LIST")
+    send_daemon_cmd(args.cmd, args.timer)
 
     return 0
 

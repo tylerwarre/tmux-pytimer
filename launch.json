@@ -1,0 +1,34 @@
+{
+    "verison": "0.2.0",
+    "configurations": [
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Debug Daemon CMD",
+            "program": "${file}",
+            "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
+            "args": ["${input:getCmd}"]
+        },
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Debug Timer CMD",
+            "program": "${file}",
+            "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
+            "args": ["${input:getCmd}", "--timer", "${input:getTimer}"]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "getCmd",
+            "type": "promptString",
+            "description": "CMD: ",
+            "default": ""
+        },
+        {
+            "id": "getTimer",
+            "type": "promptString",
+            "description": "Timer: "
+        }
+    ]
+}
