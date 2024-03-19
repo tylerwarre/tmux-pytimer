@@ -8,6 +8,7 @@ import signal
 import traceback
 from pytimer import tmux_helper
 from pytimer.pomodoro import PomodoroTimer
+from pytimer.jira import JiraTimer
 
 class PyTimerDaemon:
     CMDS = ["LIST"]
@@ -23,11 +24,14 @@ class PyTimerDaemon:
 
         # Define timers
         pomodoro = PomodoroTimer()
-        my_timer = PomodoroTimer(name="MyTimer")
+        jira = JiraTimer()
+
+        # DEBUG
+        jira.gen_tickets_menu()
 
         self.timers = {
             pomodoro.name: pomodoro,
-            my_timer.name: my_timer
+            jira.name: jira
         }
 
 

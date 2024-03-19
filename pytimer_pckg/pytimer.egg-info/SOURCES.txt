@@ -1,5 +1,6 @@
 pyproject.toml
 pytimer/__init__.py
+pytimer/jira.py
 pytimer/pomodoro.py
 pytimer/tmux_helper.py
 pytimer.egg-info/PKG-INFO

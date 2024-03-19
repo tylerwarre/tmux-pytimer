@@ -7,7 +7,7 @@ import urllib3
 import argparse
 import datetime
 import subprocess
-import pytimer.tmux_helper as tmux_helper
+from pytimer import tmux_helper
 
 # TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
 

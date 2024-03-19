@@ -1,13 +1,14 @@
 import json
+from jira_lib import Jira, JiraFields
 from .timer_classes.timer import TimerInterface
 from . import tmux_helper as tmux_helper
 
-class PomodoroTimer(TimerInterface):
-    def __init__(self, name="Pomodoro", priority=0, start_complete=False, time_work=60, 
+class JiraTimer(TimerInterface):
+    def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 
                  time_break_short=5, time_break_long=60, time_start=0, time_left=0, 
                  status_work="#[fg=#282828]#[bg=#427b58]#[bold] ",
                  status_done="#[fg=#282828]#[bg=#427b58]#[bold] ", notify=True,
-                 cmds=["ACK", "MENU", "START", "TERM", "PAUSE", "RESUME"], state="idle"):
+                 cmds=["ACK", "MENU", "START", "TERM", "PAUSE", "RESUME", "SET"], state="idle"):
         self._name = name
         self._priority = priority
         self._start_complete = start_complete
@@ -25,6 +26,8 @@ class PomodoroTimer(TimerInterface):
             self._state = "done"
         else:
             self._state = state
+        with open("jira.key", "r") as f:
+            self.jira = Jira(f.read().rstrip())
 
         self.write_status()
 
@@ -91,15 +94,18 @@ class PomodoroTimer(TimerInterface):
     def gen_menu(self):
         options = []
         if self.state == "idle" or self.state == "done":
-            options.append(helper.menu_add_option("Start", "t", f"run-shell \"{helper.get_plugin_dir()}/scripts/tmux_pytimer.py START --timer {self.class_name}\""))
+            options.append(tmux_helper.menu_add_option("Start", "t", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py START --timer {self.class_name}\""))
         elif self.state == "paused":
-            options.append(helper.menu_add_option("Resume", "t", f"run-shell \"{helper.get_plugin_dir()}/scripts/tmux_pytimer.py RESUME --timer {self.class_name}\""))
-            options.append(helper.menu_add_option("Stop", "c", f"run-shell \"{helper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {self.class_name}\""))
+            options.append(tmux_helper.menu_add_option("Resume", "t", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py RESUME --timer {self.class_name}\""))
+            options.append(tmux_helper.menu_add_option("Stop", "c", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {self.class_name}\""))
         elif self.state == "running":
-            options.append(helper.menu_add_option("Pause", "t", f"run-shell \"{helper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {self.class_name}\""))
-            options.append(helper.menu_add_option("Stop", "c", f"run-shell \"{helper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {self.class_name}\""))
+            options.append(tmux_helper.menu_add_option("Pause", "t", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {self.class_name}\""))
+            options.append(tmux_helper.menu_add_option("Stop", "c", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {self.class_name}\""))
         else:
             raise Exception(f"Unknown state {self.state}") 
+
+        options.append(tmux_helper.menu_add_option("", "", ""))
+        options.append(tmux_helper.menu_add_option("Set Task", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py SET --timer {self.class_name}\""))
 
         tmux_helper.menu_create(self.name, "R", "S", options)
 
@@ -141,3 +147,26 @@ class PomodoroTimer(TimerInterface):
                 json.dump(status, f)
         except:
             raise Exception(f"Unable to write {self.name} status file")
+
+    def sanitize_tickets(self, tickets) -> list[dict]:
+        for ticket in tickets:
+            ticket[JiraFields.SUMMARY] = ticket["fields"][JiraFields.SUMMARY]
+            ticket.pop("expand")
+            ticket.pop("fields")
+
+        return tickets
+
+
+    def gen_tickets_menu(self):
+        tickets = self.jira.get_tickets(f"{JiraFields.ASSIGNEE} = 'M83393' " \
+                f"and {JiraFields.STATUS} != 'Done' " \
+                f"and {JiraFields.PROJECT} = 'MDT' "\
+                f"and {JiraFields.SPRINT} in openSprints()", 
+                fields=[JiraFields.SUMMARY])
+        tickets = self.sanitize_tickets(tickets)
+
+        options = []
+        for ticket in tickets:
+            options.append(tmux_helper.menu_add_option(f"{ticket['key']}: {ticket['summary']}", "", ""))
+
+        tmux_helper.menu_create("Tickets", "C", "C", options)

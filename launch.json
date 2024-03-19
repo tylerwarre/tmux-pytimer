@@ -4,6 +4,14 @@
         {
             "type": "python",
             "request": "launch",
+            "name": "Debug File",
+            "program": "${file}",
+            "justMyCode": false,
+            "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python"
+        },
+        {
+            "type": "python",
+            "request": "launch",
             "name": "Debug Daemon CMD",
             "program": "${file}",
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
