@@ -3,8 +3,8 @@ import subprocess
 
 def get_plugin_dir():
     path = os.path.dirname(os.path.realpath(__file__))
-    path = path.split('/')[:-3]
-    path = '/'.join(path)
+    path = path.split('.tmux')[0]
+    path = f"{path}.tmux/plugins/tmux-pytimer"
 
     return path
 
