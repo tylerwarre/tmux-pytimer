@@ -1,27 +1,30 @@
 import json
+from datetime import datetime
 from jira_lib import Jira, JiraFields
 from .timer_classes.timer import TimerInterface
 from . import tmux_helper as tmux_helper
 
 class JiraTimer(TimerInterface):
     def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 
-                 time_break_short=5, time_break_long=60, time_start=0, time_left=0, 
-                 status_work="#[fg=#282828]#[bg=#427b58]#[bold] ",
+                 time_break_short=5, time_break_long=60, time_left="", 
+                 sessions=3, iteration=0, status_work="#[fg=#282828]#[bg=#427b58]#[bold] ",
                  status_done="#[fg=#282828]#[bg=#427b58]#[bold] ", notify=True,
-                 cmds=["ACK", "MENU", "START", "TERM", "PAUSE", "RESUME", "SET"], state="idle"):
+                 cmds=["ACK", "MENU", "START", "TERM", "PAUSE", "RESUME", "SET", "TASKS"], state="idle"):
         self._name = name
         self._priority = priority
         self._start_complete = start_complete
         self._time_work = time_work
         self._time_break_short = time_break_short
         self._time_break_long = time_break_long
-        self._time_start = time_start
         self._time_left = time_left
+        self._sessions = sessions
+        self._iteration = iteration
         self._status_work = status_work
         self._status_done = status_done
         self._notify = notify
         self._cmds = cmds
         self._is_enabled = False
+        self.task = None
         if state == "idle" and self.start_complete:
             self._state = "done"
         else:
@@ -60,12 +63,20 @@ class JiraTimer(TimerInterface):
         return self._time_break_long
 
     @property
-    def time_start(self) -> int:
+    def time_end(self) -> int:
         return self._time_start
 
     @property
-    def time_left(self) -> int:
+    def time_left(self) -> str:
         return self._time_left
+
+    @property
+    def sesssions(self) -> int:
+        return self._sessions
+
+    @property
+    def iteration(self) -> int:
+        return self._iteration
 
     @property
     def status_work(self) -> str:
@@ -105,21 +116,53 @@ class JiraTimer(TimerInterface):
             raise Exception(f"Unknown state {self.state}") 
 
         options.append(tmux_helper.menu_add_option("", "", ""))
-        options.append(tmux_helper.menu_add_option("Set Task", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py SET --timer {self.class_name}\""))
+        options.append(tmux_helper.menu_add_option("Set Task", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py TASK --timer {self.class_name}\""))
 
         tmux_helper.menu_create(self.name, "R", "S", options)
 
     def pause(self):
-        pass
+        if self.state not in ["working", "short_break", "long_break"]:
+            raise Exception(f"Unkown timer state for pause: {self.state}")
+
+        self._state = "paused"
+        self._time_end = self.time_end - int(datetime.now().strftime("%s"))
+        self._time_left = f"*{self.time_left}"
 
     def resume(self):
-        pass
+        if self.state != "paused":
+            raise Exception(f"Unkown timer state for resume: {self.state}")
+
+        self._time_end = int(datetime.now().strftime("%s")) + self.time_end
+        self.calc_time_left()
+
 
     def start(self):
-        pass
+        if self.task == None:
+            self.gen_menu()
+
+        if self.state == "idle":
+            self._time_end = int(datetime.now().strftime("%s")) + (self.time_work * 60)
+        elif self.state == "working":
+            # Long break
+            if self.iteration >= self.sesssions:
+                self._time_end = int(datetime.now().strftime("%s")) + (self.time_break_long * 60)
+            # Short break
+            else:
+                self._time_end = int(datetime.now().strftime("%s")) + (self.time_break_short * 60)
+        elif self.state == "short_break":
+            self._time_end = int(datetime.now().strftime("%s")) + (self.time_work * 60)
+        elif self.state == "long_break":
+            self._time_end = int(datetime.now().strftime("%s")) + (self.time_work * 60)
+        else:
+            raise Exception(f"Unknown timer state for start: {self.state}")
+
+        self.calc_time_left()
 
     def stop(self):
-        pass
+        self._state = "idle"
+        self._iteration = 0
+        self._time_left = ""
+        self._time_end = 0
     
     def read_status(self):
         try:
@@ -139,7 +182,7 @@ class JiraTimer(TimerInterface):
         try:
             with open(f"/tmp/tmux-pytimer/{self.name}.json", "w+") as f:
                 status = {
-                    "time_start": self.time_start,
+                    "time_end": self.time_end,
                     "time_left": self.time_left,
                     "state": self.state
                 }
@@ -167,6 +210,6 @@ class JiraTimer(TimerInterface):
 
         options = []
         for ticket in tickets:
-            options.append(tmux_helper.menu_add_option(f"{ticket['key']}: {ticket['summary']}", "", ""))
+            options.append(tmux_helper.menu_add_option(f"{ticket['key']}: {ticket['summary']}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {self.class_name}\""))
 
         tmux_helper.menu_create("Tickets", "C", "C", options)

@@ -11,7 +11,7 @@ from pytimer.pomodoro import PomodoroTimer
 from pytimer.jira import JiraTimer
 
 class PyTimerDaemon:
-    CMDS = ["LIST"]
+    CMDS = ["LIST", "STATUS"]
     PATH = "/tmp/tmux-pytimer/daemon"
 
     def __init__(self):
@@ -98,6 +98,8 @@ class PyTimerDaemon:
         logging.info(f"Received timer command: {cmd['action']} for {cmd['timer']}")
         if cmd["action"] == "MENU":
             self.timers[cmd['timer']].gen_menu()
+        elif cmd["action"] == "TASKS":
+            self.timers[cmd['timer']].get_tickets_menu()
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
             return

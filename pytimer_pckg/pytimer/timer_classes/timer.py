@@ -1,4 +1,6 @@
 #!/home/m83393/.tmux/tmux-venv/bin python3
+import math
+from datetime import datetime
 from abc import abstractmethod
 
 class TimerInterface:
@@ -19,11 +21,11 @@ class TimerInterface:
         raise NotImplementedError()
 
     @property
-    def time_start(self) -> int:
+    def time_end(self) -> int:
         raise NotImplementedError()
 
     @property
-    def time_left(self) -> int:
+    def time_left(self) -> str:
         raise NotImplementedError()
 
     @property
@@ -69,3 +71,8 @@ class TimerInterface:
     @abstractmethod
     def stop(self):
         raise NotImplementedError()
+
+    def calc_time_left(self):
+        delta = datetime.strptime(str(self.time_end), "%s") - datetime.now()
+        self._time_left = f"{math.floor(delta.seconds / 60)}m"
+
