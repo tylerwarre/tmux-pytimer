@@ -46,11 +46,12 @@ def popup_create(title, msg):
     term_width = int(term_width/2) + 1
     vert_padding = '\n'*(int((term_height/2)) - 1)
 
-    cmd = f"/usr/local/bin/tmux display-popup -s fg=#d79921,align=centre -h {term_height} -w {term_width} -t"
+    cmd = f"/usr/local/bin/tmux display-popup -S fg=#d79921,align=centre -h {term_height} -w {term_width} -T"
     cmd = cmd.split(' ')
     cmd.append(f"{title}")
     cmd.append(f"echo -n '{vert_padding}{msg.center(term_width)}'")
 
+    print("\a\a\a")
     subprocess.run(cmd)
 
     return 0
@@ -63,5 +64,12 @@ def menu_create(title, pos_x, pos_y, options):
 
     for option in options:
         cmd += option
+
+    subprocess.run(cmd)
+
+
+def refresh():
+    cmd = "tmux refresh-client -S"
+    cmd = cmd.split(' ')
 
     subprocess.run(cmd)

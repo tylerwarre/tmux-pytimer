@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: pytimer
-Version: 0.0.14
+Version: 0.0.16
 Summary: A companion package for the tmux_pytimers tmux plugin
 Author-email: Tyler Warren <tyler@warrens.one>
 Project-URL: Homepage, https://github.com/pypa/sampleproject

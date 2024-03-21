@@ -26,7 +26,10 @@ class TimerInterface:
 
     @property
     def time_left(self) -> str:
-        raise NotImplementedError()
+        delta = datetime.fromtimestamp(self.time_end) - datetime.now()
+        self._time_left = f"{math.floor(delta.seconds / 60)}m"
+        
+        return self._time_left
 
     @property
     def status_work(self) -> str:
@@ -71,8 +74,3 @@ class TimerInterface:
     @abstractmethod
     def stop(self):
         raise NotImplementedError()
-
-    def calc_time_left(self):
-        delta = datetime.strptime(str(self.time_end), "%s") - datetime.now()
-        self._time_left = f"{math.floor(delta.seconds / 60)}m"
-

@@ -1,10 +1,10 @@
 #!/home/m83393/.tmux/tmux-venv/bin/python3
 
 import os
-import logging
 import socket
-import datetime
 import signal
+import logging
+import datetime
 import traceback
 from pytimer import tmux_helper
 from pytimer.pomodoro import PomodoroTimer
@@ -23,15 +23,13 @@ class PyTimerDaemon:
             os.makedirs(self.PATH, exist_ok=True)
 
         # Define timers
-        pomodoro = PomodoroTimer()
+        #pomodoro = PomodoroTimer()
         jira = JiraTimer()
-
-        # DEBUG
-        jira.gen_tickets_menu()
+        jira2 = JiraTimer(priority=100, name="Test", sessions=1)
 
         self.timers = {
-            pomodoro.name: pomodoro,
-            jira.name: jira
+            jira.name: jira,
+            jira2.name: jira2
         }
 
 
@@ -65,13 +63,34 @@ class PyTimerDaemon:
         os._exit(0)
 
 
-    def handle_daemon_command(self, cmd):
+    def handle_daemon_command(self, cmd) -> str|None:
         logging.info(f"Received daemon command: {cmd['action']}")
         if cmd["action"] == "LIST":
-            self.daemon_list()
+            response = self.daemon_list()
+            return None
+        elif cmd["action"] == "STATUS":
+            response = self.daemon_status()
+            return response
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
-            return
+            return None
+
+
+    def daemon_status(self):
+        status = ""
+        timers = list(self.timers.values())
+        timers = sorted(timers, key=lambda timer: timer.priority)
+        for timer in timers:
+            if timer.is_enabled:
+                result = timer.update()
+                if type(result) != str:
+                    logging.critical(f"update() for {timer.name} did not return a string")
+                    continue
+
+                status += result
+
+        logging.debug(f"Updating status: {status}")
+        return status
 
 
     def daemon_list(self):
@@ -94,15 +113,24 @@ class PyTimerDaemon:
         os._exit(0)
 
 
-    def handle_timer_command(self, cmd):
+    def handle_timer_command(self, cmd) -> None:
         logging.info(f"Received timer command: {cmd['action']} for {cmd['timer']}")
         if cmd["action"] == "MENU":
             self.timers[cmd['timer']].gen_menu()
         elif cmd["action"] == "TASKS":
-            self.timers[cmd['timer']].get_tickets_menu()
+            self.timers[cmd['timer']].gen_tickets_menu()
+        elif cmd["action"] == "START":
+            self.timers[cmd['timer']].start()
+        elif cmd["action"] == "STOP":
+            self.timers[cmd['timer']].stop()
+        elif cmd["action"] == "PAUSE":
+            self.timers[cmd['timer']].pause()
+        elif cmd["action"] == "RESUME":
+            self.timers[cmd['timer']].resume()
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
-            return
+
+        return None
 
 
     def validate_command(self, data):
@@ -161,19 +189,30 @@ class PyTimerDaemon:
                 if not data:
                     break
 
-                message = f"ACK"
-                connection.sendall(message.encode())
-
                 command = self.validate_command(data)
                 if command == None:
                     break
 
                 if command["type"] == "daemon":
-                    self.handle_daemon_command(command["cmd"])
+                    response = self.handle_daemon_command(command["cmd"])
                 elif command["type"] == "timer":
-                    self.handle_timer_command(command["cmd"])
+                    response = self.handle_timer_command(command["cmd"])
                 else:
+                    response = None
                     logging.warning(f"Unknown command type {command['type']}.\n{command}")
+
+                if response == None:
+                    message = f"ACK"
+                    connection.sendall(message.encode())
+                    continue
+                    
+                if len(response) == 0:
+                    message = f"ACK"
+                    connection.sendall(message.encode())
+                    continue
+
+                message = response
+                connection.sendall(message.encode())
 
             connection.close()
         except Exception:

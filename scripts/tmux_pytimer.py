@@ -3,10 +3,7 @@
 import os
 import socket
 import logging
-import urllib3
 import argparse
-import datetime
-import subprocess
 from pytimer import tmux_helper
 
 # TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
@@ -31,7 +28,11 @@ def send_daemon_cmd(cmd, timer=None):
         client.sendall(message.encode())
 
         response = client.recv(1024)
-        logging.info(f"Received date: {response.decode()}")
+        response  = response.decode()
+        logging.info(f"Received date: {response}")
+        if cmd == "STATUS" and response != "ACK":
+            print(response)
+
 
         client.close()
     except TimeoutError:
