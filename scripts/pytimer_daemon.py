@@ -63,17 +63,18 @@ class PyTimerDaemon:
         os._exit(0)
 
 
-    def handle_daemon_command(self, cmd) -> str|None:
+    def handle_daemon_command(self, cmd) -> list:
+        response = ["ACK"]
         logging.info(f"Received daemon command: {cmd['action']}")
+
         if cmd["action"] == "LIST":
-            response = self.daemon_list()
-            return None
+            self.daemon_list()
         elif cmd["action"] == "STATUS":
-            response = self.daemon_status()
-            return response
+            response.insert(0, self.daemon_status())
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
-            return None
+
+        return response
 
 
     def daemon_status(self):
@@ -97,9 +98,9 @@ class PyTimerDaemon:
         options = []
         for timer in list(self.timers.values()):
             if timer.is_enabled:
-                options.append(tmux_helper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
+                options.append(tmux_helper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
             else:
-                options.append(tmux_helper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
+                options.append(tmux_helper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
 
         tmux_helper.menu_create("Timers", "R", "S", options)
 
@@ -113,8 +114,10 @@ class PyTimerDaemon:
         os._exit(0)
 
 
-    def handle_timer_command(self, cmd) -> None:
+    def handle_timer_command(self, cmd) -> list:
+        response = ["ACK"]
         logging.info(f"Received timer command: {cmd['action']} for {cmd['timer']}")
+
         if cmd["action"] == "MENU":
             self.timers[cmd['timer']].gen_menu()
         elif cmd["action"] == "TASKS":
@@ -127,10 +130,12 @@ class PyTimerDaemon:
             self.timers[cmd['timer']].pause()
         elif cmd["action"] == "RESUME":
             self.timers[cmd['timer']].resume()
+        elif cmd["action"] == "SET":
+            self.timers[cmd['timer']].set_task(cmd['value'])
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
 
-        return None
+        return response
 
 
     def validate_command(self, data):
@@ -143,10 +148,15 @@ class PyTimerDaemon:
         try:
             logging.debug(f"Received: {data}")
             data = data.split(" ")
+            if "BLOCK" in data:
+                data.remove("BLOCK")
+                block = True
+            else:
+                block = False
 
             timer_names = list(self.timers.keys())
 
-            if len(data) > 2:
+            if len(data) > 3:
                 logging.warning(f"{len(data)} arguments provided.\nDaemon commands require one positional argument ([CMD]) and Timer commands require two positional arguments ([CMD] [TIMER]).\n{data}")
                 return None
             # Daemon Command
@@ -156,11 +166,15 @@ class PyTimerDaemon:
                     logging.warning(f"{cmd} is not a valid daemon command. Valid daemon commands are: {self.CMDS}")
                     return None
 
-                return {"type": "daemon", "cmd": {"action": cmd}}
+                return {"type": "daemon", "cmd": {"action": cmd, "blocking": block}}
             # Timer Command
-            elif len(data) == 2:
+            elif len(data) >= 2:
                 cmd = data[0]
                 timer_name = data[1]
+                if len(data) == 3:
+                    value = data[2]
+                else:
+                    value = None
 
                 if timer_name not in timer_names:
                     logging.warning(f"There is no timer named {timer_name}. Valid timers are: {timer_names}")
@@ -171,7 +185,10 @@ class PyTimerDaemon:
                         if cmd not in timer.cmds:
                             logging.warning(f"{cmd} is not a valid command for {timer.name}. Valid commands for {timer.name} are: {timer.cmds}")
                         else:
-                            return {"type": "timer", "cmd": {"action": cmd, "timer": timer_name}}
+                            if len(data) == 2:
+                                return {"type": "timer", "cmd": {"action": cmd, "timer": timer_name, "blocking": block}}
+                            elif value != None:
+                                return {"type": "timer", "cmd": {"action": cmd, "timer": timer_name, "value": value, "blocking": block}}
 
                 return None
         except Exception as e:
@@ -193,26 +210,22 @@ class PyTimerDaemon:
                 if command == None:
                     break
 
+                if command["cmd"]["blocking"]:
+                    message = f"SYN ACK"
+                    connection.sendall(message.encode())
+
                 if command["type"] == "daemon":
                     response = self.handle_daemon_command(command["cmd"])
                 elif command["type"] == "timer":
                     response = self.handle_timer_command(command["cmd"])
                 else:
-                    response = None
+                    response = ["ACK"]
                     logging.warning(f"Unknown command type {command['type']}.\n{command}")
 
-                if response == None:
-                    message = f"ACK"
-                    connection.sendall(message.encode())
-                    continue
-                    
-                if len(response) == 0:
-                    message = f"ACK"
-                    connection.sendall(message.encode())
-                    continue
-
-                message = response
-                connection.sendall(message.encode())
+                for msg in response:
+                    logging.debug(f"Sent: {msg}")
+                    msg += ";"
+                    connection.sendall(msg.encode())
 
             connection.close()
         except Exception:

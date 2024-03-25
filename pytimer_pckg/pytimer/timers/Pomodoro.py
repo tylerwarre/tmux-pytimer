@@ -1,6 +1,6 @@
 import json
-from .timer_classes.timer import TimerInterface
-from . import tmux_helper as tmux_helper
+from .Timer import TimerInterface
+from .. import TmuxHelper
 
 class PomodoroTimer(TimerInterface):
     def __init__(self, name="Pomodoro", priority=0, start_complete=False, time_work=60, 

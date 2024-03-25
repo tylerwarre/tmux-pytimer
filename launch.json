@@ -15,7 +15,7 @@
             "name": "Debug Daemon CMD",
             "program": "${file}",
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
-            "args": ["${input:getCmd}"]
+            "args": ["${input:getCmd}", "--blocking"]
         },
         {
             "type": "python",
@@ -23,7 +23,7 @@
             "name": "Debug Timer CMD",
             "program": "${file}",
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
-            "args": ["${input:getCmd}", "--timer", "${input:getTimer}"]
+            "args": ["${input:getCmd}", "--timer", "${input:getTimer}", "--blocking"]
         }
     ],
     "inputs": [
