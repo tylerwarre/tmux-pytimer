@@ -81,7 +81,7 @@ class PyTimerDaemon:
         timers = list(self.timers.values())
         timers = sorted(timers, key=lambda timer: timer.priority)
         for timer in timers:
-            if timer.enabled:
+            if timer.state.enabled:
                 result = timer.update()
                 if type(result) != str:
                     logging.critical(f"update() for {timer.name} did not return a string")
@@ -96,7 +96,7 @@ class PyTimerDaemon:
     def daemon_list(self):
         options = []
         for timer in list(self.timers.values()):
-            if timer.enabled:
+            if timer.state.enabled:
                 options.append(TmuxHelper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
             else:
                 options.append(TmuxHelper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
@@ -262,9 +262,9 @@ def main():
     server.listen(1)
     logging.info(f"Daemon listening on {daemon.PATH}/pytimer.sock")
 
-    #if os.fork():
-    #    # Tell the parent process to exit
-    #    os._exit(0)
+    if os.fork():
+        # Tell the parent process to exit
+        os._exit(0)
 
     while True:
         daemon.listen(server)

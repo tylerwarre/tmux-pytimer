@@ -6,6 +6,9 @@ from .states.JiraStates import *
 
 class JiraTimer:
     # TODO implement loading from file
+    # TODO fix start() not waiting for task to be set before continuie to start state machine. Maybe use timeouts and threads?
+    # TODO add timeout to popup so that timers continue if away
+        # TODO Add a carry_over time property that uses the exta time passed the session in a future break or subtract from a future work session. Maybe use the tmux display-popup -E option.
     def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 
                  time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True, verify_tls=True):
         self.name = name
@@ -22,7 +25,6 @@ class JiraTimer:
         self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS"]
         self.task = None
         self.task_time = 0
-        self.enabled = False
         self.verify_tls=verify_tls
 
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
@@ -42,7 +44,7 @@ class JiraTimer:
         TmuxHelper.menu_create(self.name, "R", "S", self.state.menu_options)
 
     def pause(self):
-        self.state.next(self)
+        self.state = self.state.pause(self)
 
         self.write_status()
         self.update()
@@ -59,9 +61,6 @@ class JiraTimer:
         if self.task == None:
             self.gen_tickets_menu()
 
-        if self.task == None:
-            return
-
         self.state.next(self)
 
         self.write_status()
@@ -70,14 +69,15 @@ class JiraTimer:
 
     def stop(self):
         self.log_work()
-        self.state.next(self)
+        self.state = self.state.stop(self)
 
         self.write_status()
         self.update()
         TmuxHelper.refresh()
 
     def set_task(self, task_key):
-        pass
+        self.task = task_key
+        self.state.update_menu(self)
 
     #TODO
     def log_work(self):
@@ -146,7 +146,7 @@ class JiraTimer:
         now = int(datetime.now().strftime("%s"))
         self.task_time = now - self.time_start
 
-        if now >= self.time_end:
+        if now >= self.time_end and str(self.state) in ["Working", "BreakLong", "BreakShort"]:
             self.log_work()
             self.state.next(self)
 

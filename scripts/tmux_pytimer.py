@@ -5,7 +5,8 @@ import socket
 import argparse
 from pytimer import TmuxHelper
 
-# TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
+# TODO fix STATUS command which crashes the daemon when STATUS data is returned. Likley and issue with the SYN/ACK process
+# TODO create a state machine that manages the SYN/ACK state, the command sent, and whether data should be expected
 
 def receive_msg(socket: socket.socket, buff_size=1024):
     response = socket.recv(buff_size)
@@ -98,9 +99,9 @@ def main():
     parser.add_argument('cmd', help="Specify the command you would like to perform")
     args = parser.parse_args()
 
-    if os.fork():
-        # Tell the parent process to exit
-        os._exit(0)
+    #if os.fork():
+    #    # Tell the parent process to exit
+    #    os._exit(0)
 
     send_daemon_cmd(args)
 

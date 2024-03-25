@@ -7,6 +7,8 @@ class JiraState:
         self.status = ""
         self.enabled = False
         self.menu_options = []
+
+    def state_init(self):
         logging.info(f"Initializing state: {self}")
 
     def __str__(self):
@@ -16,9 +18,9 @@ class JiraState:
         raise NotImplementedError
 
     def pause(self, timer):
-        print(f"pause restore: {self}")
+        logging.debug(f"pause restore: {self}")
 
-        timer.state = Paused(timer)
+        return Paused(timer)
 
     def stop(self, timer):
         timer.time_start = 0
@@ -27,11 +29,16 @@ class JiraState:
         timer.task = None
         timer.task_time = 0
 
-        timer.state = Idle(timer)
+        return Idle(timer)
+
+    def update_menu(self, timer):
+        if timer.task != None:
+            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", ""), TmuxHelper.menu_add_option("", "", "")] + self.menu_options
 
 
 class Idle(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.status = ""
         self.enabled = False
         self.menu_options = [
@@ -40,16 +47,17 @@ class Idle(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\""),
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
     def next(self, timer):
-        timer.time_end = timer.time_work
+        now = int(datetime.now().strftime("%s")) 
+        timer.time_end = now + timer.time_work
 
         timer.state = Working(timer)
         
 class Done(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
@@ -58,16 +66,17 @@ class Done(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
     def next(self, timer):
-        timer.time_end = timer.time_work
+        now = int(datetime.now().strftime("%s")) 
+        timer.time_end = now + timer.time_work
 
         timer.state = Working(timer)
 
 class Working(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
@@ -77,8 +86,7 @@ class Working(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
     def next(self, timer):
         timer.iteration += 1
@@ -97,6 +105,7 @@ class Working(JiraState):
 
 class BreakLong(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
@@ -106,8 +115,7 @@ class BreakLong(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -119,6 +127,7 @@ class BreakLong(JiraState):
 
 class BreakShort(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
@@ -128,8 +137,7 @@ class BreakShort(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
 
     def next(self, timer):
@@ -142,6 +150,7 @@ class BreakShort(JiraState):
 
 class Paused(JiraState):
     def __init__(self, timer):
+        self.state_init()
         self.restore_state = timer.state
         self.restore_time = timer.time_end - int(datetime.now().strftime("%s"))
         self.status = "#[fg=#282828]#[bg=#d65d0e]#[bold] "
@@ -153,8 +162,7 @@ class Paused(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", "")] + self.menu_options
+        self.update_menu(timer)
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
