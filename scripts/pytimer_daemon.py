@@ -210,7 +210,7 @@ class PyTimerDaemon:
                     break
 
                 if command["cmd"]["blocking"]:
-                    message = f"SYN ACK"
+                    message = f"SYN ACK;"
                     connection.sendall(message.encode())
                     logging.debug(f"Sent: {message}")
 

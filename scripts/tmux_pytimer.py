@@ -6,6 +6,7 @@ import argparse
 from pytimer import TmuxHelper
 
 # TODO fix STATUS command which crashes the daemon when STATUS data is returned. Likley and issue with the SYN/ACK process
+    # Issue is related to race condition. See whiteboard. Probably best to create a SM at this point. Also see whiteboard
 # TODO create a state machine that manages the SYN/ACK state, the command sent, and whether data should be expected
 
 def receive_msg(socket: socket.socket, buff_size=1024):
@@ -14,9 +15,19 @@ def receive_msg(socket: socket.socket, buff_size=1024):
     response = response.split(";")
 
     messages = []
-    for msg in response:
-        if len(msg) > 0:
-            messages.append(msg)
+    num_msgs = len(response)
+    i = 0
+    while i < num_msgs:
+        if i+1 < num_msgs:
+            if response[i] != "SYN ACK" and response[i+1] == "ACK":
+                messages.append((response[i], response[i+1]))
+                i += 1
+            else:
+                messages.append(response[i])
+        else:
+            messages.append(response[i])
+
+        i += 1
 
     return messages
 
@@ -70,16 +81,23 @@ def send_daemon_cmd(args):
 
                 value = msg
 
-                if value != None:
-                    print(value)
+                #if value != None:
+                #    print(value)
         else:
             messages = receive_msg(client)
-            if len(messages) != 1:
-                TmuxHelper.message_create(f"ACK expected, but recieved: {messages}")
 
-            msg = messages.pop(0)
-            if msg != "ACK":
-                TmuxHelper.message_create(f"ACK expected, but recieved: {msg}")
+            for msg in messages:
+                value = None
+                msg = messages.pop(0)
+                if type(msg) == tuple:
+                    value, msg = msg
+                    
+                if msg != "ACK":
+                    TmuxHelper.message_create(f"ACK expected, but recieved: {msg}")
+
+                if value != None:
+                    print(value)
+
 
         client.close()
     except TimeoutError:
