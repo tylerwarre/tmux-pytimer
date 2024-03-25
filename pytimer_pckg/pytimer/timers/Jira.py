@@ -7,7 +7,7 @@ from .states.JiraStates import *
 class JiraTimer:
     # TODO implement loading from file
     def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 
-                 time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True):
+                 time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True, verify_tls=True):
         self.name = name
         self.priority = priority
         self.start_complete = start_complete
@@ -22,9 +22,11 @@ class JiraTimer:
         self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS"]
         self.task = None
         self.task_time = 0
+        self.enabled = False
+        self.verify_tls=verify_tls
 
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
-            self.jira = Jira(f.read().rstrip())
+            self.jira = Jira(f.read().rstrip(), verify_tls=verify_tls)
 
         if self.start_complete:
             self.state = Done(self)
@@ -53,10 +55,12 @@ class JiraTimer:
         self.update()
         TmuxHelper.refresh()
 
-
     def start(self):
         if self.task == None:
             self.gen_tickets_menu()
+
+        if self.task == None:
+            return
 
         self.state.next(self)
 
@@ -71,6 +75,9 @@ class JiraTimer:
         self.write_status()
         self.update()
         TmuxHelper.refresh()
+
+    def set_task(self, task_key):
+        pass
 
     #TODO
     def log_work(self):

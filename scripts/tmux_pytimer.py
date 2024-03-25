@@ -3,7 +3,7 @@
 import os
 import socket
 import argparse
-from pytimer import tmux_helper
+from pytimer import TmuxHelper
 
 # TODO Program should create a "daemon" that waits commands. Timers should only be instatiated once. Try creating a Unix socket server that is called whenever tmux refreshes, but does not start if it is already running
 
@@ -24,7 +24,7 @@ def send_daemon_cmd(args):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
     if not os.path.exists(socket_path):
-        tmux_helper.message_create(f"Socket does not exists at {socket_path}. Has the daemon started?")
+        TmuxHelper.message_create(f"Socket does not exists at {socket_path}. Has the daemon started?")
         return
 
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -53,7 +53,7 @@ def send_daemon_cmd(args):
 
             msg = messages.pop(0)
             if msg != "SYN ACK":
-                tmux_helper.message_create(f"SYN ACK expected for a blocking command, but recieved: {msg}")
+                TmuxHelper.message_create(f"SYN ACK expected for a blocking command, but recieved: {msg}")
                 return
 
             while True:
@@ -74,19 +74,19 @@ def send_daemon_cmd(args):
         else:
             messages = receive_msg(client)
             if len(messages) != 1:
-                tmux_helper.message_create(f"ACK expected, but recieved: {messages}")
+                TmuxHelper.message_create(f"ACK expected, but recieved: {messages}")
 
             msg = messages.pop(0)
             if msg != "ACK":
-                tmux_helper.message_create(f"ACK expected, but recieved: {msg}")
+                TmuxHelper.message_create(f"ACK expected, but recieved: {msg}")
 
         client.close()
     except TimeoutError:
-        tmux_helper.message_create("Timeout while waiting for ACK from daemon")
+        TmuxHelper.message_create("Timeout while waiting for ACK from daemon")
     except ConnectionRefusedError:
-        tmux_helper.message_create("Socket is not listening. Has the daemon started?")
+        TmuxHelper.message_create("Socket is not listening. Has the daemon started?")
     except Exception as e:
-        tmux_helper.message_create(f"{e.__class__.__name__}: Unable to connect to socket")
+        TmuxHelper.message_create(f"{e.__class__.__name__}: Unable to connect to socket")
 
     return
 

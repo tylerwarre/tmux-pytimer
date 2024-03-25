@@ -6,9 +6,8 @@ import signal
 import logging
 import datetime
 import traceback
-from pytimer import tmux_helper
-from pytimer.pomodoro import PomodoroTimer
-from pytimer.jira import JiraTimer
+from pytimer import TmuxHelper
+from pytimer.timers import JiraTimer
 
 class PyTimerDaemon:
     CMDS = ["LIST", "STATUS"]
@@ -24,8 +23,8 @@ class PyTimerDaemon:
 
         # Define timers
         #pomodoro = PomodoroTimer()
-        jira = JiraTimer()
-        jira2 = JiraTimer(priority=100, name="Test", sessions=1)
+        jira = JiraTimer(verify_tls=False)
+        jira2 = JiraTimer(priority=100, name="Test", sessions=1, verify_tls=False)
 
         self.timers = {
             jira.name: jira,
@@ -82,7 +81,7 @@ class PyTimerDaemon:
         timers = list(self.timers.values())
         timers = sorted(timers, key=lambda timer: timer.priority)
         for timer in timers:
-            if timer.is_enabled:
+            if timer.enabled:
                 result = timer.update()
                 if type(result) != str:
                     logging.critical(f"update() for {timer.name} did not return a string")
@@ -97,12 +96,12 @@ class PyTimerDaemon:
     def daemon_list(self):
         options = []
         for timer in list(self.timers.values()):
-            if timer.is_enabled:
-                options.append(tmux_helper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
+            if timer.enabled:
+                options.append(TmuxHelper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
             else:
-                options.append(tmux_helper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{tmux_helper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
+                options.append(TmuxHelper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
 
-        tmux_helper.menu_create("Timers", "R", "S", options)
+        TmuxHelper.menu_create("Timers", "R", "S", options)
 
         return
 
@@ -213,6 +212,7 @@ class PyTimerDaemon:
                 if command["cmd"]["blocking"]:
                     message = f"SYN ACK"
                     connection.sendall(message.encode())
+                    logging.debug(f"Sent: {message}")
 
                 if command["type"] == "daemon":
                     response = self.handle_daemon_command(command["cmd"])
@@ -223,9 +223,9 @@ class PyTimerDaemon:
                     logging.warning(f"Unknown command type {command['type']}.\n{command}")
 
                 for msg in response:
-                    logging.debug(f"Sent: {msg}")
                     msg += ";"
                     connection.sendall(msg.encode())
+                    logging.debug(f"Sent: {msg[:-1]}")
 
             connection.close()
         except Exception:
@@ -262,9 +262,9 @@ def main():
     server.listen(1)
     logging.info(f"Daemon listening on {daemon.PATH}/pytimer.sock")
 
-    if os.fork():
-        # Tell the parent process to exit
-        os._exit(0)
+    #if os.fork():
+    #    # Tell the parent process to exit
+    #    os._exit(0)
 
     while True:
         daemon.listen(server)

@@ -35,9 +35,9 @@ class Idle(JiraState):
         self.status = ""
         self.enabled = False
         self.menu_options = [
-            TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --timer {timer.name}\""),
+            TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --blocking --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\""),
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\""),
         ]
 
         if timer.task != None:
@@ -53,9 +53,9 @@ class Done(JiraState):
         self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
-            TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --timer {timer.name}\""),
+            TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --blocking --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
         if timer.task != None:
@@ -74,7 +74,7 @@ class Working(JiraState):
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
             TmuxHelper.menu_add_option("Stop", "x", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
         if timer.task != None:
@@ -103,7 +103,7 @@ class BreakLong(JiraState):
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
             TmuxHelper.menu_add_option("Stop", "x", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
         if timer.task != None:
@@ -125,7 +125,7 @@ class BreakShort(JiraState):
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
             TmuxHelper.menu_add_option("Stop", "x", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
         if timer.task != None:
@@ -150,7 +150,7 @@ class Paused(JiraState):
             TmuxHelper.menu_add_option("Resume", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py RESUME --timer {timer.name}\""),
             TmuxHelper.menu_add_option("Stop", "x", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
         if timer.task != None:
