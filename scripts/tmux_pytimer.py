@@ -5,10 +5,6 @@ import socket
 import argparse
 from pytimer import TmuxHelper, DaemonStates
 
-# TODO fix STATUS command which crashes the daemon when STATUS data is returned. Likley and issue with the SYN/ACK process
-    # Issue is related to race condition. See whiteboard. Probably best to create a SM at this point. Also see whiteboard
-# TODO create a state machine that manages the SYN/ACK state, the command sent, and whether data should be expected
-
 def send_daemon_cmd(args):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
@@ -17,10 +13,7 @@ def send_daemon_cmd(args):
         return
 
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    if args.blocking:
-        client.settimeout(300)
-    else:
-        client.settimeout(3)
+    client.settimeout(300)
 
     try:
         client.connect(socket_path)

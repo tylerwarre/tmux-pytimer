@@ -6,7 +6,6 @@ from .states.JiraStates import *
 
 class JiraTimer:
     # TODO implement loading from file
-    # TODO fix start() not waiting for task to be set before continuie to start state machine. Maybe use timeouts and threads?
     # TODO add timeout to popup so that timers continue if away
         # TODO Add a carry_over time property that uses the exta time passed the session in a future break or subtract from a future work session. Maybe use the tmux display-popup -E option.
     def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 

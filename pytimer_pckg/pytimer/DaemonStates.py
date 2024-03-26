@@ -2,8 +2,6 @@ import logging
 import socket
 from pytimer import TmuxHelper
 
-# TODO add handler for carry over messages
-
 class DaemonState:
     AWAIT_MSG = None
 
