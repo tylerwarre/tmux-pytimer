@@ -14,6 +14,7 @@
             "request": "launch",
             "name": "Debug Daemon CMD",
             "program": "${file}",
+            "justMyCode": false,
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
             "args": ["${input:getCmd}", "--blocking"]
         },
@@ -22,6 +23,7 @@
             "request": "launch",
             "name": "Debug Timer CMD",
             "program": "${file}",
+            "justMyCode": false,
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
             "args": ["${input:getCmd}", "--timer", "${input:getTimer}", "--blocking"]
         }

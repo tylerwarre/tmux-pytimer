@@ -1,10 +1,12 @@
 import logging
+import math
 from datetime import datetime
 from ... import TmuxHelper
 
 class JiraState:
     def __init__(self):
         self.status = ""
+        self.status_base = ""
         self.enabled = False
         self.menu_options = []
 
@@ -31,15 +33,21 @@ class JiraState:
 
         return Idle(timer)
 
-    def update_menu(self, timer):
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", ""), TmuxHelper.menu_add_option("", "", "")] + self.menu_options
+    def update_status(self, timer):
+        self.status = self.status_base
 
+    def update(self, timer):
+        status_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", ""), TmuxHelper.menu_add_option("", "", "")]
+        if timer.task != None and status_options not in self.menu_options:
+            self.menu_options = status_options + self.menu_options
+
+        self.update_status(timer)
 
 class Idle(JiraState):
     def __init__(self, timer):
         self.state_init()
         self.status = ""
+        self.status_base = ""
         self.enabled = False
         self.menu_options = [
             TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --blocking --timer {timer.name}\""),
@@ -47,7 +55,7 @@ class Idle(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\""),
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -58,7 +66,8 @@ class Idle(JiraState):
 class Done(JiraState):
     def __init__(self, timer):
         self.state_init()
-        self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
+        self.status = ""
+        self.status_base = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
             TmuxHelper.menu_add_option("Start", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py START --blocking --timer {timer.name}\""),
@@ -66,7 +75,7 @@ class Done(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -74,10 +83,12 @@ class Done(JiraState):
 
         timer.state = Working(timer)
 
+
 class Working(JiraState):
     def __init__(self, timer):
         self.state_init()
-        self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
+        self.status = ""
+        self.status_base = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
@@ -86,7 +97,7 @@ class Working(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
 
     def next(self, timer):
         timer.iteration += 1
@@ -103,10 +114,16 @@ class Working(JiraState):
 
         timer.time_start = now
 
+    def update_status(self, timer):
+        now = int(datetime.now().strftime("%s")) 
+        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        self.status = f"{self.status_base} {timer.iteration}/{timer.sessions} {time_left}"
+
 class BreakLong(JiraState):
     def __init__(self, timer):
         self.state_init()
-        self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
+        self.status = ""
+        self.status_base = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
@@ -115,7 +132,8 @@ class BreakLong(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
+
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -124,11 +142,19 @@ class BreakLong(JiraState):
 
         timer.state = Working(timer)
         TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
+
+
+    def update_status(self, timer):
+        now = int(datetime.now().strftime("%s")) 
+        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        self.status = f"{self.status_base} {time_left}"
+
 
 class BreakShort(JiraState):
     def __init__(self, timer):
         self.state_init()
-        self.status = "#[fg=#282828]#[bg=#427b58]#[bold] "
+        self.status = ""
+        self.status_base = "#[fg=#282828]#[bg=#427b58]#[bold] "
         self.enabled = True
         self.menu_options = [
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
@@ -137,7 +163,7 @@ class BreakShort(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
 
 
     def next(self, timer):
@@ -147,13 +173,20 @@ class BreakShort(JiraState):
 
         timer.state = Working(timer)
         TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
+
+    
+    def update_status(self, timer):
+        now = int(datetime.now().strftime("%s")) 
+        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        self.status = f"{self.status_base} {time_left}"
 
 class Paused(JiraState):
     def __init__(self, timer):
         self.state_init()
         self.restore_state = timer.state
         self.restore_time = timer.time_end - int(datetime.now().strftime("%s"))
-        self.status = "#[fg=#282828]#[bg=#d65d0e]#[bold] "
+        self.status = ""
+        self.status_base = "#[fg=#282828]#[bg=#d65d0e]#[bold] "
         self.enabled = True
         self.menu_options = [
             TmuxHelper.menu_add_option("Resume", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py RESUME --timer {timer.name}\""),
@@ -162,10 +195,17 @@ class Paused(JiraState):
             TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
         ]
 
-        self.update_menu(timer)
+        self.update(timer)
+
 
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
         timer.time_end = now + self.restore_time
         timer.time_start = now
         timer.state = self.restore_state
+
+
+    def update_status(self, timer):
+        now = int(datetime.now().strftime("%s")) 
+        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        self.status = f"{self.status_base} {timer.iteration}/{timer.sessions} {time_left}"

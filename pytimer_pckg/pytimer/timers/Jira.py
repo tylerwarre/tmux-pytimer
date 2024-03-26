@@ -77,7 +77,7 @@ class JiraTimer:
 
     def set_task(self, task_key):
         self.task = task_key
-        self.state.update_menu(self)
+        self.state.update(self)
 
     #TODO
     def log_work(self):
@@ -149,7 +149,9 @@ class JiraTimer:
         if now >= self.time_end and str(self.state) in ["Working", "BreakLong", "BreakShort"]:
             self.log_work()
             self.state.next(self)
+        else:
+            self.state.update(self)
 
         self.write_status()
 
-        return self.state.status
+        return f"{self.state.status} "

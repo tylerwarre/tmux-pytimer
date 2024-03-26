@@ -3,34 +3,11 @@
 import os
 import socket
 import argparse
-from pytimer import TmuxHelper
+from pytimer import TmuxHelper, DaemonStates
 
 # TODO fix STATUS command which crashes the daemon when STATUS data is returned. Likley and issue with the SYN/ACK process
     # Issue is related to race condition. See whiteboard. Probably best to create a SM at this point. Also see whiteboard
 # TODO create a state machine that manages the SYN/ACK state, the command sent, and whether data should be expected
-
-def receive_msg(socket: socket.socket, buff_size=1024):
-    response = socket.recv(buff_size)
-    response = response.decode()
-    response = response.split(";")
-
-    messages = []
-    num_msgs = len(response)
-    i = 0
-    while i < num_msgs:
-        if i+1 < num_msgs:
-            if response[i] != "SYN ACK" and response[i+1] == "ACK":
-                messages.append((response[i], response[i+1]))
-                i += 1
-            else:
-                messages.append(response[i])
-        else:
-            messages.append(response[i])
-
-        i += 1
-
-    return messages
-
 
 def send_daemon_cmd(args):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
@@ -61,45 +38,15 @@ def send_daemon_cmd(args):
         client.sendall(message.encode())
 
         if args.blocking:
-            messages = receive_msg(client)
-
-            msg = messages.pop(0)
-            if msg != "SYN ACK":
-                TmuxHelper.message_create(f"SYN ACK expected for a blocking command, but recieved: {msg}")
-                return
-
-            while True:
-                value = None
-                if len(messages) > 0:
-                    msg = messages.pop(0)
-                else:
-                    messages = receive_msg(client)
-                    msg = messages.pop(0)
-
-                if msg == "ACK":
-                    break
-
-                value = msg
-
-                #if value != None:
-                #    print(value)
+            state = DaemonStates.SynAck(client)
         else:
-            messages = receive_msg(client)
+            state = DaemonStates.Ack(client)
 
-            for msg in messages:
-                value = None
-                msg = messages.pop(0)
-                if type(msg) == tuple:
-                    value, msg = msg
-                    
-                if msg != "ACK":
-                    TmuxHelper.message_create(f"ACK expected, but recieved: {msg}")
+        while str(state) != "Done":
+            next_state = state.next()
+            if next_state != None:
+                state = next_state
 
-                if value != None:
-                    print(value)
-
-
-        client.close()
     except TimeoutError:
         TmuxHelper.message_create("Timeout while waiting for ACK from daemon")
     except ConnectionRefusedError:
