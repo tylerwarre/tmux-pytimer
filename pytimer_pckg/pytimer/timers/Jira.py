@@ -121,7 +121,6 @@ class JiraTimer:
 
         return iteration
 
-    # TODO implement reading state to file
     def read_status(self):
         try:
             with open(f"/tmp/tmux-pytimer/{self.name}.json", "r") as f:
@@ -153,7 +152,6 @@ class JiraTimer:
                 fail_flag = True
 
             # Validate state
-            # TODO handle restore_state and restore_time in PAUSE state
             state = self.verify_state(status["state"])
             if state != False:
                 if str(state) != str(self.state):
@@ -172,7 +170,6 @@ class JiraTimer:
                 self.state = JiraStates.Idle(self)
                 self.state.stop(self)
 
-    # TODO implement writing state to file
     def write_status(self):
         try:
             with open(f"/tmp/tmux-pytimer/{self.name}.json", "w+") as f:
