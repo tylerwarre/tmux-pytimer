@@ -1,8 +1,9 @@
 import json
+import inspect
 from datetime import datetime
 from jira_lib import Jira, JiraFields
 from .. import TmuxHelper
-from .states.JiraStates import *
+from .states import JiraStates
 
 class JiraTimer:
     # TODO implement loading from file
@@ -12,7 +13,6 @@ class JiraTimer:
                  time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True, verify_tls=True):
         self.name = name
         self.priority = priority
-        self.start_complete = start_complete
         self.time_work = time_work*60
         self.time_break_short = time_break_short*60
         self.time_break_long = time_break_long*60
@@ -29,10 +29,7 @@ class JiraTimer:
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
             self.jira = Jira(f.read().rstrip(), verify_tls=verify_tls)
 
-        if self.start_complete:
-            self.state = Done(self)
-        else:
-            self.state = Idle(self)
+        self.state = JiraStates.Idle(self)
 
         self.write_status()
 
@@ -81,21 +78,99 @@ class JiraTimer:
     #TODO
     def log_work(self):
         pass
-    
+
+    def verify_state(self, state):
+        if type(state["name"]) != str:
+            return False
+
+        if type(state["properties"]) != dict:
+            return False
+
+        mod_classes = list(JiraStates.STATES.keys())
+                                                                      
+        if state["name"] not in mod_classes:
+            return False
+                                                                      
+        # Returns an instantiation of the matched class
+        return JiraStates.STATES[state["name"]](self)
+                                                                      
+
+    def verify_time_end(self, time_end):
+        if type(time_end) != int:
+            return False
+
+        if int(datetime.now().strftime("%s")) > time_end:
+            return False
+
+        return time_end
+
+
+    def verify_time_start(self, time_start):
+        if type(time_start) != int:
+            return False
+
+        return time_start
+
+
+    def verify_iteration(self, iteration):
+        if type(iteration) != int:
+            return False
+
+        if iteration > self.sessions or iteration <= 0:
+            return False
+
+        return iteration
+
     # TODO implement reading state to file
     def read_status(self):
         try:
             with open(f"/tmp/tmux-pytimer/{self.name}.json", "r") as f:
                 status = json.load(f)
-        except:
+        except Exception as e:
             raise Exception(f"Unable to access {self.name} status file")
 
+        fail_flag = False
         try:
-            self.time_end = status["time_end"]
-            self.time_start = status["time_start"]
-            self.iteration = status["iteration"]
+            # Validate time_end
+            time_end = self.verify_time_end(status["time_end"])
+            if time_end != False:
+                self.time_end = time_end
+            else:
+                fail_flag = True
+
+            # Validate time_start
+            time_start = self.verify_time_start(status["time_start"])
+            if time_start != False:
+                self.time_start = time_start
+            else:
+                fail_flag = True
+
+            # Validate iteration
+            iteration = self.verify_iteration(status["iteration"])
+            if iteration != False:
+                self.iteration = iteration
+            else:
+                fail_flag = True
+
+            # Validate state
+            # TODO handle restore_state and restore_time in PAUSE state
+            state = self.verify_state(status["state"])
+            if state != False:
+                if str(state) != str(self.state):
+                    self.state = state
+                else:
+                    del state
+
+                self.state.restore_properties(self, status["state"]["properties"])
+            else:
+                fail_flag = True
+
         except:
             raise Exception(f"Unable to read status {self.name} status file")
+        finally:
+            if fail_flag:
+                self.state = JiraStates.Idle(self)
+                self.state.stop(self)
 
     # TODO implement writing state to file
     def write_status(self):
@@ -104,11 +179,15 @@ class JiraTimer:
                 status = {
                     "time_end": self.time_end,
                     "time_start": self.time_start,
-                    "iteration": self.iteration
+                    "iteration": self.iteration,
+                    "state": {
+                        "name": str(self.state),
+                        "properties": self.state.get_properties()
+                    }
                 }
 
                 json.dump(status, f)
-        except:
+        except Exception as e:
             raise Exception(f"Unable to write {self.name} status file")
 
     def sanitize_tickets(self, tickets) -> list[dict]:

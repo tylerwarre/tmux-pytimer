@@ -5,6 +5,8 @@ import socket
 import argparse
 from pytimer import TmuxHelper, DaemonStates
 
+# TODO Possible memory leak with start --blocking command
+
 def send_daemon_cmd(args):
     socket_path = "/tmp/tmux-pytimer/daemon/pytimer.sock"
 
