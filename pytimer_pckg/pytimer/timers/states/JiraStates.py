@@ -96,26 +96,29 @@ class Working(JiraState):
 
     def next(self, timer):
         timer.iteration += 1
-        now = int(datetime.now().strftime("%s")) 
 
         if timer.iteration > timer.sessions:
             timer.iteration = 1
-            time_end = now + timer.time_break_long
+            duration = timer.time_break_long
             timer.state = BreakLong(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a long break")
         else:
-            time_end = now + timer.time_break_short
+            duration = timer.time_break_short
             timer.state = BreakShort(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a short break")
+            
+        timer.comment()
 
-        TmuxHelper.popup_create(f"Add comment for {timer.task}", f"{TmuxHelper.get_plugin_dir()}/scripts/add_comment.py {timer.task} \"$response\"", height=30, input=True)
-
+        now = int(datetime.now().strftime("%s")) 
         timer.time_start = now
-        timer.time_end = time_end
+        timer.time_end = now + duration
 
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 
-        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        time_left = math.floor((timer.time_end - now)/60)
+        if time_left < 0:
+            time_left = 0
+        time_left = f"{time_left}m"
         self.status = f"{self.STATUS_STYLE} {self.STATUS_ICON} {timer.iteration}/{timer.sessions} {time_left}"
 
 class BreakLong(JiraState):
@@ -148,7 +151,10 @@ class BreakLong(JiraState):
 
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 
-        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        time_left = math.floor((timer.time_end - now)/60)
+        if time_left < 0:
+            time_left = 0
+        time_left = f"{time_left}m"
         self.status = f"{self.STATUS_STYLE} {self.STATUS_ICON} {timer.iteration}/{timer.sessions} {time_left}"
 
 
@@ -170,7 +176,6 @@ class BreakShort(JiraState):
 
         self.update(timer)
 
-
     def next(self, timer):
         now = int(datetime.now().strftime("%s")) 
         timer.time_end = now + timer.time_work
@@ -182,8 +187,12 @@ class BreakShort(JiraState):
     
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 
-        time_left = f"{math.floor((timer.time_end - now)/60)}m"
+        time_left = math.floor((timer.time_end - now)/60)
+        if time_left < 0:
+            time_left = 0
+        time_left = f"{time_left}m"
         self.status = f"{self.STATUS_STYLE} {self.STATUS_ICON} {timer.iteration}/{timer.sessions} {time_left}"
+
 
 class Paused(JiraState):
     STATUS_ICON = ""
@@ -241,7 +250,10 @@ class Paused(JiraState):
         self.restore_time = properties["restore_time"]
 
     def update_status(self, timer):
-        time_left = f"{math.floor(self.restore_time/60)}m"
+        time_left = math.floor(self.restore_time/60)
+        if time_left < 0:
+            time_left = 0
+        time_left = f"{time_left}m"
         self.status = f"{self.STATUS_STYLE} {self.restore_state.STATUS_ICON} {timer.iteration}/{timer.sessions} {time_left}"
 
 

@@ -11,14 +11,19 @@ from pytimer import TmuxHelper
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("timer")
     parser.add_argument("task")
-    parser.add_argument("comment")
+    parser.add_argument("--comment")
     args = parser.parse_args()
 
-    if type(args.comment) != str:
+    if type(args.task) != str:
         return
 
-    if type(args.task) != str:
+    if type(args.timer) != str:
+        return
+
+    if type(args.comment) != str:
+        TmuxHelper.popup_create(f"Add comment for {args.task}", f"{TmuxHelper.get_plugin_dir()}/scripts/add_comment.py \"{args.timer}\" \"{args.task}\" --comment \"$response\"", height=30, input=True)
         return
 
     if len(args.comment) == 0:
@@ -28,9 +33,9 @@ def main():
             jira = Jira(f.read().rstrip(), verify_tls=False)
 
         jira.add_comment(args.task, args.comment)
-    except:
-        if os.path.exists("/tmp/tmux-pytimer/jira-comments.json"):
-            with open("/tmp/tmux-pytimer/jira-comments.json", "r") as f:
+    finally:
+        if os.path.exists(f"{TmuxHelper.get_plugin_dir()}/jira/{args.timer}-comments.json"):
+            with open(f"{TmuxHelper.get_plugin_dir()}/jira/{args.timer}-comments.json", "r") as f:
                 try:
                     comments = json.load(f)
                     comments.append({"timestamp": str(datetime.now()),"key": args.task, "comment": args.comment})
@@ -39,7 +44,7 @@ def main():
         else:
                 comments = [{"timestamp": str(datetime.now()),"key": args.task, "comment": args.comment}]
 
-        with open("/tmp/tmux-pytimer/jira-comments.json", "w") as f:
+        with open(f"{TmuxHelper.get_plugin_dir()}/jira/{args.timer}-comments.json", "w") as f:
             json.dump(comments, f, indent=2)
 
 if __name__ == "__main__":

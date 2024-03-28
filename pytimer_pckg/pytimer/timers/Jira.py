@@ -1,11 +1,17 @@
+import os
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, date
+import subprocess
 from jira_lib import Jira, JiraFields
 from .. import TmuxHelper
 from .states import JiraStates
 
 class JiraTimer:
-    # TODO implement loading from file
+    # add_comment seems to be broken again...
+    # TODO merge all task properties into one dictionary
+    # TODO implement loading properties from file
+
     # TODO add timeout to popup so that timers continue if away
         # TODO Add a carry_over time property that uses the exta time passed the session in a future break or subtract from a future work session. Maybe use the tmux display-popup -E option.
     def __init__(self, name="Jira", priority=0, time_work=60, 
@@ -20,10 +26,13 @@ class JiraTimer:
         self.sessions = sessions
         self.iteration = iteration
         self.notify = notify
-        self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS", "COMMENT"]
+        self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS"]
         self.task = None
         self.task_time = 0
+        self.task_code = ""
         self.verify_tls=verify_tls
+
+        os.makedirs(f"{TmuxHelper.get_plugin_dir()}/jira", exist_ok=True)
 
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
             self.jira = Jira(f.read().rstrip(), verify_tls=verify_tls)
@@ -64,6 +73,8 @@ class JiraTimer:
 
     def stop(self):
         self.log_work()
+        if self.task != None:
+            self.comment()
         self.state = self.state.stop(self)
 
         self.write_status()
@@ -71,24 +82,55 @@ class JiraTimer:
         TmuxHelper.refresh()
 
     def set_task(self, task_key):
-        self.task = task_key
+        if self.task != None:
+            self.task = task_key
+            self.comment()
+        else:
+            self.task = task_key
+
+        tickets = self.jira.get_tickets(f"{JiraFields.ASSIGNEE} = 'M83393' " \
+                f"and {JiraFields.KEY} = {self.task}", 
+                fields=[JiraFields.SUMMARY, JiraFields.CHARGE_CODE])
+        tickets = self.sanitize_tickets(tickets)
+
+        if len(tickets) != 1:
+            logging.critical(f"Unable to get charge code for {self.task}")
+        else:
+            tickets = tickets[0]
+            self.task_code = tickets[JiraFields.CHARGE_CODE]
+
         self.state.update(self)
 
-    def comment(self, comment):
-        if type(comment) != str:
-            raise Exception(f"{self.name}: Comment message was not provided")
-
-        if type(self.task) != str:
-            raise Exception(f"{self.name}: Issue key was not provided for comment")
-
-        if len(comment) == 0:
-            return
-
-        self.jira.add_comment(self.task, comment)
+    def comment(self):
+        cmd = f"{TmuxHelper.get_plugin_dir()}/scripts/add_comment.py \"{self.name}\" \"{self.task}\""
+        cmd = cmd.split(' ')
+        subprocess.run(cmd)
 
     #TODO
     def log_work(self):
-        pass
+        if self.task == None:
+            return
+
+        self.task_time += int(datetime.now().strftime("%s")) - self.time_start
+        if os.path.exists(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.json"):
+            with open(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.json", "r") as f:
+                try:
+                    work_log = json.load(f)
+                    if str(date.today()) not in work_log:
+                        work_log[str(date.today())] = {}
+
+                    work_log[str(date.today())][self.task] = {"task": self.task, "charge_code": self.task_code, "task_time": self.task_time}
+                except:
+                    work_log = {}
+                    work_log[str(date.today())] = {}
+                    work_log[str(date.today())][self.task] = {"task": self.task, "charge_code": self.task_code, "task_time": self.task_time}
+        else:
+            work_log = {}
+            work_log[str(date.today())] = {}
+            work_log[str(date.today())][self.task] = {"task": self.task, "charge_code": self.task_code, "task_time": self.task_time}
+
+        with open(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.json", "w") as f:
+            json.dump(work_log, f, indent=2)
 
     def verify_state(self, state):
         if type(state["name"]) != str:
@@ -201,6 +243,7 @@ class JiraTimer:
     def sanitize_tickets(self, tickets) -> list[dict]:
         for ticket in tickets:
             ticket[JiraFields.SUMMARY] = ticket["fields"][JiraFields.SUMMARY]
+            ticket[JiraFields.CHARGE_CODE] = ticket["fields"][JiraFields.CHARGE_CODE]
             ticket.pop("expand")
             ticket.pop("fields")
 
@@ -212,7 +255,7 @@ class JiraTimer:
                 f"and {JiraFields.STATUS} != 'Done' " \
                 f"and {JiraFields.PROJECT} = 'MDT' "\
                 f"and {JiraFields.SPRINT} in openSprints()", 
-                fields=[JiraFields.SUMMARY])
+                fields=[JiraFields.SUMMARY, JiraFields.CHARGE_CODE])
         tickets = self.sanitize_tickets(tickets)
 
         options = []
@@ -232,9 +275,10 @@ class JiraTimer:
         now = int(datetime.now().strftime("%s"))
         self.task_time = now - self.time_start
 
-        if now >= self.time_end and str(self.state) in ["Working", "BreakLong", "BreakShort"]:
+        if str(self.state) in ["Working", "BreakLong", "BreakShort"]:
             self.log_work()
-            self.state.next(self)
+            if now >= self.time_end:
+                self.state.next(self)
         else:
             self.state.update(self)
 

@@ -28,7 +28,7 @@ def get_terminal_size():
 
 
 def message_create(msg, delay=5000):
-    cmd = ["/usr/local/bin/tmux", "display-message", "-d", f"{delay}", msg]
+    cmd = ["/usr/local/bin/tmux", "display-message", "-d", f"{delay}", f"\"{msg}\""]
     subprocess.run(cmd)
 
     return 0
@@ -48,14 +48,14 @@ def popup_create(title, msg, x_pos="C", y_pos="C", height=50, width=50, input=Fa
         cmd = f"/usr/local/bin/tmux display-popup -S fg=#fe8019 -h {term_height} -w {term_width} -x {x_pos} -y {y_pos} -E"
 
         cmd = cmd.split(' ')
-        cmd += ["-T", f"#[fg=#ebdbb2]{title}"]
-        cmd.append(f"read response; {msg}")
+        cmd += ["-T", f"#[fg=#ebdbb2]\"{title}\""]
+        cmd.append(f"read response; \"{msg}\"")
     else:
         vert_padding = '\n'*(int((term_height/2)) - 1)
         cmd = f"/usr/local/bin/tmux display-popup -S fg=#fe8019,align=centre -h {term_height} -w {term_width} -x {x_pos} -y {y_pos}"
 
         cmd = cmd.split(' ')
-        cmd += ["-T", f"#[fg=#ebdbb2]{title}"]
+        cmd += ["-T", f"#[fg=#ebdbb2]\"{title}\""]
         cmd += ["echo", "-n", f"\a\a\a{vert_padding}{msg.center(term_width)}"]
 
     subprocess.run(cmd)
