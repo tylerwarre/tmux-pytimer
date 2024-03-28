@@ -26,6 +26,15 @@
             "justMyCode": false,
             "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
             "args": ["${input:getCmd}", "--timer", "${input:getTimer}", "--blocking"]
+        },
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "Debug Comment",
+            "program": "${file}",
+            "justMyCode": false,
+            "pythonPath": "/home/m83393/.tmux/tmux-venv/bin/python",
+            "args": ["COMMENT", "--timer", "${input:getTimer}", "--value", "test", "--blocking"]
         }
     ],
     "inputs": [

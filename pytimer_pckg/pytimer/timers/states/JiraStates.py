@@ -1,6 +1,8 @@
-import logging
+import json
 import math
+import logging
 from datetime import datetime
+import os
 from ... import TmuxHelper
 
 class JiraState:
@@ -98,15 +100,18 @@ class Working(JiraState):
 
         if timer.iteration > timer.sessions:
             timer.iteration = 1
-            timer.time_end = now + timer.time_break_long
+            time_end = now + timer.time_break_long
             timer.state = BreakLong(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a long break")
         else:
-            timer.time_end = now + timer.time_break_short
+            time_end = now + timer.time_break_short
             timer.state = BreakShort(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a short break")
 
+        TmuxHelper.popup_create(f"Add comment for {timer.task}", f"{TmuxHelper.get_plugin_dir()}/scripts/add_comment.py {timer.task} \"$response\"", height=30, input=True)
+
         timer.time_start = now
+        timer.time_end = time_end
 
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -126,7 +131,7 @@ class BreakLong(JiraState):
             TmuxHelper.menu_add_option("Pause", "t", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py PAUSE --timer {timer.name}\""),
             TmuxHelper.menu_add_option("Stop", "x", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py STOP --timer {timer.name}\""),
             TmuxHelper.menu_add_option("", "", ""),
-            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\"")
+            TmuxHelper.menu_add_option("Set Task", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py TASKS --blocking --timer {timer.name}\""),
         ]
 
         self.update(timer)

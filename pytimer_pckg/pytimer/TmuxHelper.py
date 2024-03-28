@@ -34,27 +34,33 @@ def message_create(msg, delay=5000):
     return 0
 
 
-def popup_create(title, msg):
+def popup_create(title, msg, x_pos="C", y_pos="C", height=50, width=50, input=False):
     term_height, term_width = get_terminal_size()
     if term_height % 2 == 0:
         term_height += 1
 
-    if term_width %2 == 0:
+    if term_width % 2 == 0:
         term_width += 1
 
-    term_height = int(term_height/2) + 1
-    term_width = int(term_width/2) + 1
-    vert_padding = '\n'*(int((term_height/2)) - 1)
+    term_height = int(term_height * (height/100)) + 1
+    term_width = int(term_width * (width/100)) + 1
+    if input:
+        cmd = f"/usr/local/bin/tmux display-popup -S fg=#fe8019 -h {term_height} -w {term_width} -x {x_pos} -y {y_pos} -E"
 
-    cmd = f"/usr/local/bin/tmux display-popup -S fg=#d79921,align=centre -h {term_height} -w {term_width} -T"
-    cmd = cmd.split(' ')
-    cmd.append(f"{title}")
-    cmd.append(f"echo -n '{vert_padding}{msg.center(term_width)}'")
+        cmd = cmd.split(' ')
+        cmd += ["-T", f"#[fg=#ebdbb2]{title}"]
+        cmd.append(f"read response; {msg}")
+    else:
+        vert_padding = '\n'*(int((term_height/2)) - 1)
+        cmd = f"/usr/local/bin/tmux display-popup -S fg=#fe8019,align=centre -h {term_height} -w {term_width} -x {x_pos} -y {y_pos}"
 
-    print("\a\a\a")
+        cmd = cmd.split(' ')
+        cmd += ["-T", f"#[fg=#ebdbb2]{title}"]
+        cmd += ["echo", "-n", f"\a\a\a{vert_padding}{msg.center(term_width)}"]
+
     subprocess.run(cmd)
 
-    return 0
+    return
 
 
 def menu_create(title, pos_x, pos_y, options):

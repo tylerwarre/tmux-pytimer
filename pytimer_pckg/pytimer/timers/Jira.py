@@ -1,5 +1,4 @@
 import json
-import inspect
 from datetime import datetime
 from jira_lib import Jira, JiraFields
 from .. import TmuxHelper
@@ -9,7 +8,7 @@ class JiraTimer:
     # TODO implement loading from file
     # TODO add timeout to popup so that timers continue if away
         # TODO Add a carry_over time property that uses the exta time passed the session in a future break or subtract from a future work session. Maybe use the tmux display-popup -E option.
-    def __init__(self, name="Jira", priority=0, start_complete=False, time_work=60, 
+    def __init__(self, name="Jira", priority=0, time_work=60, 
                  time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True, verify_tls=True):
         self.name = name
         self.priority = priority
@@ -21,7 +20,7 @@ class JiraTimer:
         self.sessions = sessions
         self.iteration = iteration
         self.notify = notify
-        self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS"]
+        self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS", "COMMENT"]
         self.task = None
         self.task_time = 0
         self.verify_tls=verify_tls
@@ -75,6 +74,18 @@ class JiraTimer:
         self.task = task_key
         self.state.update(self)
 
+    def comment(self, comment):
+        if type(comment) != str:
+            raise Exception(f"{self.name}: Comment message was not provided")
+
+        if type(self.task) != str:
+            raise Exception(f"{self.name}: Issue key was not provided for comment")
+
+        if len(comment) == 0:
+            return
+
+        self.jira.add_comment(self.task, comment)
+
     #TODO
     def log_work(self):
         pass
@@ -99,14 +110,14 @@ class JiraTimer:
         if type(time_end) != int:
             return False
 
-        if int(datetime.now().strftime("%s")) > time_end:
-            return False
-
         return time_end
 
 
     def verify_time_start(self, time_start):
         if type(time_start) != int:
+            return False
+
+        if int(datetime.now().strftime("%s")) < time_start:
             return False
 
         return time_start
@@ -183,7 +194,7 @@ class JiraTimer:
                     }
                 }
 
-                json.dump(status, f)
+                json.dump(status, f, indent=2)
         except Exception as e:
             raise Exception(f"Unable to write {self.name} status file")
 

@@ -1,5 +1,6 @@
 #!/home/m83393/.tmux/tmux-venv/bin/python3
 
+import sys
 import os
 import socket
 import argparse
@@ -35,7 +36,10 @@ def send_daemon_cmd(args):
         else:
             state = DaemonStates.Ack(client)
 
-        while str(state) != "Done":
+        while True:
+            if str(state) == "Done":
+                break
+
             next_state = state.next()
             if next_state != None:
                 state = next_state
@@ -59,7 +63,7 @@ def main():
 
     #if os.fork():
     #    # Tell the parent process to exit
-    #    os._exit(0)
+    #    sys.exit(0)
 
     send_daemon_cmd(args)
 

@@ -131,6 +131,8 @@ class PyTimerDaemon:
             self.timers[cmd['timer']].resume()
         elif cmd["action"] == "SET":
             self.timers[cmd['timer']].set_task(cmd['value'])
+        elif cmd["action"] == "COMMENT":
+            self.timers[cmd['timer']].comment(cmd['value'])
         else:
             logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
 

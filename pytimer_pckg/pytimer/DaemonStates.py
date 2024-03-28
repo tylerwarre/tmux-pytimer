@@ -105,7 +105,7 @@ class Ack(DaemonState):
     def handle_msgs(self):
         if len(self.queue) == 0:
             self.get_msgs()
-        elif self.queue[0] != self.AWAIT_MSG:
+        elif self.AWAIT_MSG not in self.queue:
             self.get_msgs()
 
         response = self.queue

@@ -138,6 +138,6 @@ class PomodoroTimer(TimerInterface):
                     "state": self.state
                 }
 
-                json.dump(status, f)
+                json.dump(status, f, indent=2)
         except:
             raise Exception(f"Unable to write {self.name} status file")
