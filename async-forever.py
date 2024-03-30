@@ -3,6 +3,8 @@ from re import sub
 import socketserver
 import subprocess
 
+# can we create a queue of handle() calls so that we can put all of the commands in a Queue?
+
 # Create a semaphore that is initalized in each timer
 # daemon functions requires a lock on all semaphores
 # Certain tmux functions should have a semaphore
