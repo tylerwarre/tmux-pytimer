@@ -4,11 +4,12 @@ from os import unlink
 from datetime import datetime, timedelta
 import socket
 
+# switch to asyncio for socket server sigh... (https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio)
+
+# use if asyncio doesn't work out
 # The handle function must continue to run until the socket it pulled from the Queue. Otherwise the socket returns ConnectionClosed
 # Add a pipe for the handle function that connects to the handle_cmds functions. When the socket is pulled from the queue send a message back through the pipe to tell the handle() function to exit
 # Use aync/yeild to limit CPU usage while waiting for socket to get pulled from Queue
-
-# can we create a queue of handle() calls so that we can put all of the commands in a Queue?
 
 # Create a semaphore that is initalized in each timer
 # daemon functions requires a lock on all semaphores
