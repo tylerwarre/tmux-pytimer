@@ -7,6 +7,8 @@ import socket
 # The handle function must continue to run until the socket it pulled from the Queue. Otherwise the socket returns ConnectionClosed
 # Add a pipe for the handle function that connects to the handle_cmds functions. When the socket is pulled from the queue send a message back through the pipe to tell the handle() function to exit
 
+# can we create a queue of handle() calls so that we can put all of the commands in a Queue?
+
 # Create a semaphore that is initalized in each timer
 # daemon functions requires a lock on all semaphores
 # Certain tmux functions should have a semaphore
