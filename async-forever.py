@@ -1,7 +1,10 @@
-import pickle
+import os
+import time
+import math
+import asyncio
+import logging
 import multiprocessing
-from os import unlink
-from datetime import datetime, timedelta
+from concurrent.futures import ProcessPoolExecutor
 import socket
 
 # switch to asyncio for socket server sigh... (https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio)
@@ -20,79 +23,64 @@ import socket
 SOCK_PATH = "/tmp/my.socket"
 commands = multiprocessing.Queue()
 s_jira = multiprocessing.Semaphore(1)
+s_tmux = multiprocessing.Semaphore(1)
 
-def handle(s):
-    data = s.recv(1024)
+async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    cmd = (await reader.read(1024))
 
-    if not data:
-        s.close()
+    if not cmd:
+        writer.close()
         return
 
-    data = data.decode().rstrip()
-    commands.put((data, s))
-    done = datetime.now() + timedelta(seconds=10)
-    while datetime.now() < done:
-        pass
-    return 0
+    cmd = cmd.decode().rstrip()
+    commands.put(cmd)
 
-def jira(cmd, s):
-    done = datetime.now() + timedelta(seconds=10)
-    while datetime.now() < done:
-        continue
-    print(cmd)
-    s.shutdown(socket.SHUT_RDWR)
-    s.close()
+    logging.warning(f"Added {cmd} to queue")
+    writer.write("ACK".encode())
+    writer.close()
 
-    return 0
+def jira(cmd):
+    data = [math.sqrt(i) for i in range(50000000)]
 
-def tmux(cmd, s):
-    print(cmd)
-    s.shutdown(socket.SHUT_RDWR)
-    s.close()
+    logging.warning(cmd)
+    return
 
-    return 0
+def tmux(cmd):
+    data = [math.sqrt(i) for i in range(50000000)]
 
-def process_cmds():
+    logging.warning(cmd)
+    return
+
+def daemon(cmd):
+    logging.warning(cmd)
+    return
+
+def cmd_processor():
     while True:
-        multiprocessing.active_children()
-        cmd, s = commands.get()
-        print(cmd)
-        print(f"processing: {cmd}")
-
-        if cmd == "jira":
-            s_jira.acquire()
-            task = multiprocessing.Process(target=jira, args=[cmd,s,], daemon=True)
-            task.start()
-            task.join(timeout=15)
-            if task.is_alive():
-                print(f"Unable to process {cmd}")
-                task.terminate()
-                s_jira.release()
-            else:
-                s_jira.release()
+        cmd = commands.get()
+        logging.warning(f"Processing {cmd}")
+        if cmd == "daemon":
+            daemon(cmd)
+        elif cmd == "jira":
+            jira(cmd)
         elif cmd == "tmux":
-            s_jira.acquire()
-            task = multiprocessing.Process(target=tmux, args=[cmd,s,], daemon=True)
-            task.start()
-            task.join(timeout=3)
-            if task.is_alive():
-                print(f"Unable to process {cmd}")
-                task.terminate()
-                s_jira.release()
-            else:
-                s_jira.release()
+            tmux(cmd)
+        else:
+            logging.warning(f"Unkown command: {cmd}")
 
 
-multiprocessing.Process(target=process_cmds).start()
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-unlink(SOCK_PATH)
-sock.bind(SOCK_PATH)
-sock.listen(4)
-commands.put(("test", "hello"))
-msg1, msg2 = commands.get()
-print(f"{msg1}, {msg2}")
+async def sock_server():
+    server = await asyncio.start_unix_server(handle, SOCK_PATH)
+    async with server:
+        await server.serve_forever()
 
-while True:
-    multiprocessing.active_children()
-    s, addr = sock.accept()
-    multiprocessing.Process(target=handle, args=[s,], daemon=True).start()
+if __name__ == '__main__':
+
+    if os.fork():
+        os._exit(0)
+
+    loop = asyncio.get_event_loop()
+    multiprocessing.Process(target=cmd_processor).start()
+    loop.create_task(sock_server())
+    loop.run_forever()
+
