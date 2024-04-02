@@ -15,6 +15,20 @@ def menu_add_option(name, key, cmd):
     return entry
 
 
+def get_tmux_option(key):
+    cmd = ["/usr/local/bin/tmux", "show-option", "-gqv", f"{key}"]
+
+    result = subprocess.run(cmd, capture_output=True)
+    
+    return result.stdout.decode().rstrip()
+
+
+def set_tmux_option(key, value):
+    cmd = ["/usr/local/bin/tmux", "set-option", "-g", f"{key}", f"{value}"]
+
+    subprocess.run(cmd)
+
+
 def get_terminal_size():
     term_height = subprocess.run(["/usr/local/bin/tmux", "display-message", "-p", "#{window_height}"], capture_output=True)
     term_width = subprocess.run(["/usr/local/bin/tmux", "display-message", "-p", "#{window_width}"], capture_output=True)
