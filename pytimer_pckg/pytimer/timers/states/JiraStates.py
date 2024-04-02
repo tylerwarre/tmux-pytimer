@@ -30,8 +30,7 @@ class JiraState:
         timer.time_start = 0
         timer.time_end = 0
         timer.iteration = 1
-        timer.task = None
-        timer.task_time = 0
+        timer.task = {"key": None, "task_time": 0, "charge_code": None}
 
         return Idle(timer)
 
@@ -46,8 +45,8 @@ class JiraState:
 
     def update(self, timer):
         self.menu_options = self.menu_base_options
-        if timer.task != None:
-            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task}", "", ""), TmuxHelper.menu_add_option("", "", "")] + self.menu_options
+        if timer.task["key"] != None:
+            self.menu_options = [TmuxHelper.menu_add_option("", "", ""), TmuxHelper.menu_add_option(f"-#[nodim]{timer.task['key']}", "", ""), TmuxHelper.menu_add_option("", "", "")] + self.menu_options
 
         self.update_status(timer)
 
@@ -107,7 +106,7 @@ class Working(JiraState):
             timer.state = BreakShort(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a short break")
 
-        TmuxHelper.popup_create(f"Add comment for {timer.task}", f"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py COMMENT --timer {timer.name} --value \"'$response'\"", height=30, input=True)
+        timer.comment()
 
         now = int(datetime.now().strftime("%s")) 
         timer.time_start = now

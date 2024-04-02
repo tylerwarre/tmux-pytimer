@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from jira_lib import Jira, JiraFields
 from .. import TmuxHelper
@@ -21,8 +22,7 @@ class JiraTimer:
         self.iteration = iteration
         self.notify = notify
         self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS", "COMMENT"]
-        self.task = None
-        self.task_time = 0
+        self.task = {"key": None, "task_time": 0, "charge_code": None}
         self.verify_tls=verify_tls
 
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
@@ -53,7 +53,7 @@ class JiraTimer:
         TmuxHelper.refresh()
 
     def start(self):
-        if self.task == None:
+        if self.task["key"] == None:
             self.gen_tickets_menu()
 
         self.state.next(self)
@@ -71,20 +71,46 @@ class JiraTimer:
         TmuxHelper.refresh()
 
     def set_task(self, task_key):
-        self.task = task_key
+        if self.task["key"] != None:
+            self.comment()
+
+        self.task["key"] = task_key
+
+        tickets = self.jira.get_tickets(f"{JiraFields.ASSIGNEE} = 'M83393' " \
+                f"and {JiraFields.KEY} = {self.task['key']}",
+                fields=[JiraFields.SUMMARY, JiraFields.CHARGE_CODE])
+        tickets = self.sanitize_tickets(tickets)
+
+        if len(tickets) != 1:
+            logging.critical(f"Unable to get charge code for {self.task['key']}")
+        else:
+            tickets = tickets[0]
+            self.task["charge_code"] = tickets[JiraFields.CHARGE_CODE]
+
+        self.task["task_time"] = 0
+
         self.state.update(self)
 
-    def comment(self, comment):
-        if type(comment) != str:
-            raise Exception(f"{self.name}: Comment message was not provided")
-
-        if type(self.task) != str:
-            raise Exception(f"{self.name}: Issue key was not provided for comment")
-
-        if len(comment) == 0:
+    def comment(self, comment=None):
+        if self.task["key"] == None:
+            logging.warning(f"{self.name}: Task is not set")
             return
 
-        self.jira.add_comment(self.task, comment)
+        if comment == None:
+            TmuxHelper.popup_create(f"Add comment for {self.task['key']}", 
+                                    f"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py "\
+                                    f"COMMENT --timer {self.name} --value \"'$response'\"", height=30, input=True)
+            return
+
+        if type(comment) != str:
+            logging.warning(f"{self.name}: Comment message was not provided")
+            return
+
+        if len(comment) == 0:
+            logging.info("Empty comment provided. Aborting comment")
+            return
+
+        self.jira.add_comment(self.task["key"], comment)
 
     #TODO
     def log_work(self):
@@ -201,6 +227,7 @@ class JiraTimer:
     def sanitize_tickets(self, tickets) -> list[dict]:
         for ticket in tickets:
             ticket[JiraFields.SUMMARY] = ticket["fields"][JiraFields.SUMMARY]
+            ticket[JiraFields.CHARGE_CODE] = ticket["fields"][JiraFields.CHARGE_CODE]
             ticket.pop("expand")
             ticket.pop("fields")
 
@@ -212,7 +239,7 @@ class JiraTimer:
                 f"and {JiraFields.STATUS} != 'Done' " \
                 f"and {JiraFields.PROJECT} = 'MDT' "\
                 f"and {JiraFields.SPRINT} in openSprints()", 
-                fields=[JiraFields.SUMMARY])
+                fields=[JiraFields.SUMMARY, JiraFields.CHARGE_CODE])
         tickets = self.sanitize_tickets(tickets)
 
         options = []
@@ -230,7 +257,8 @@ class JiraTimer:
         self.read_status()
 
         now = int(datetime.now().strftime("%s"))
-        self.task_time = now - self.time_start
+        if self.task["key"] != None:
+            self.task["task_time"] = now - self.time_start
 
         if now >= self.time_end and str(self.state) in ["Working", "BreakLong", "BreakShort"]:
             self.log_work()
