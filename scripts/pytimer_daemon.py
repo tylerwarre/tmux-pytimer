@@ -147,7 +147,6 @@ class CmdHandler:
 
     def validate_cmd(self, cmd) -> dict|bool:
         value = None
-        logging.debug(cmd)
         if cmd[-1] == "'":
             try:
                 pos = cmd.index("'")
