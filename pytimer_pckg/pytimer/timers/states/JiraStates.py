@@ -13,7 +13,7 @@ class JiraState:
         self.menu_base_options = []
 
     def state_init(self):
-        logging.info(f"Initializing state: {self}")
+        pass
 
     def __str__(self):
         return self.__class__.__name__
@@ -23,10 +23,13 @@ class JiraState:
 
     def pause(self, timer):
         logging.debug(f"pause restore: {self}")
+        timer.log_work()
 
         return Paused(timer)
 
     def stop(self, timer):
+        timer.log_work()
+
         timer.time_start = 0
         timer.time_end = 0
         timer.iteration = 1
@@ -95,15 +98,14 @@ class Working(JiraState):
 
     def next(self, timer):
         timer.iteration += 1
-
         if timer.iteration > timer.sessions:
             timer.iteration = 1
             duration = timer.time_break_long
-            timer.state = BreakLong(timer)
+            state = BreakLong(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a long break")
         else:
             duration = timer.time_break_short
-            timer.state = BreakShort(timer)
+            state = BreakShort(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a short break")
 
         timer.comment()
@@ -111,6 +113,7 @@ class Working(JiraState):
         now = int(datetime.now().strftime("%s")) 
         timer.time_start = now
         timer.time_end = now + duration
+        timer.state = state
 
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 

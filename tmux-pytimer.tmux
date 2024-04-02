@@ -6,5 +6,5 @@ source "$CURRENT_DIR/scripts/helpers.sh"
 
 tmux bind-key t run-shell "$CURRENT_DIR/scripts/tmux_pytimer.py LIST"
 
-interpolate_status
+#interpolate_status
 #"$CURRENT_DIR/scripts/pytimer_daemon.py" &

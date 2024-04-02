@@ -1,6 +1,7 @@
+import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from jira_lib import Jira, JiraFields
 from .. import TmuxHelper
 from .states import JiraStates
@@ -25,10 +26,15 @@ class JiraTimer:
         self.task = {"key": None, "task_time": 0, "charge_code": None}
         self.verify_tls=verify_tls
 
+        os.makedirs(f"{TmuxHelper.get_plugin_dir()}/jira", exist_ok=True)
+
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
             self.jira = Jira(f.read().rstrip(), verify_tls=verify_tls)
 
-        self.state = JiraStates.Idle(self)
+        if os.path.exists(f"/tmp/tmux-pytimer/{self.name}.json"):
+            self.read_status()
+        else:
+            self.state = JiraStates.Idle(self)
 
         self.write_status()
 
@@ -63,7 +69,6 @@ class JiraTimer:
         TmuxHelper.refresh()
 
     def stop(self):
-        self.log_work()
         self.state = self.state.stop(self)
 
         self.write_status()
@@ -108,13 +113,30 @@ class JiraTimer:
 
         if len(comment) == 0:
             logging.info("Empty comment provided. Aborting comment")
+            self.log_work()
             return
-
+        
+        self.log_work(comment)
         self.jira.add_comment(self.task["key"], comment)
 
-    #TODO
-    def log_work(self):
-        pass
+
+    def log_work(self, comment=None):
+        if self.task["key"] == None:
+            return
+
+        if str(self.start) != "Working":
+            return
+
+        self.task["task_time"] += int(datetime.now().strftime("%s")) - self.time_start
+
+        if not os.path.exists(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.csv"):
+            with open(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.csv", "w+") as f:
+                f.write("Timestamp,Task,Task Time,Charge Code,Comment\n")
+
+        with open(f"{TmuxHelper.get_plugin_dir()}/jira/{self.name}-work-log.csv", "a+") as f:
+            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')},{self.task['key']},"\
+                    f"{self.task['task_time']},{self.task['charge_code']},{comment}\n")
+
 
     def verify_state(self, state):
         if type(state["name"]) != str:
@@ -158,6 +180,31 @@ class JiraTimer:
 
         return iteration
 
+    def verify_task(self, task):
+        if type(task) != dict:
+            return False
+
+        if "key" not in task or "task_time" not in task or "charge_code" not in task:
+            return False
+
+        if task["task_time"] < 0:
+            return False
+
+        if type(task["charge_code"] != str):
+            return False
+
+        if task["key"] != None:
+            tickets = self.jira.get_tickets(f"{JiraFields.ASSIGNEE} = 'M83393' " \
+                    f"and {JiraFields.KEY} = {task['key']}",
+                    fields=[JiraFields.SUMMARY, JiraFields.CHARGE_CODE])
+            tickets = self.sanitize_tickets(tickets)
+
+            if len(tickets) != 1:
+                logging.critical(f"Unable to get charge code for {self.task['key']}")
+                return False
+
+        return task
+
     def read_status(self):
         try:
             with open(f"/tmp/tmux-pytimer/{self.name}.json", "r") as f:
@@ -188,6 +235,13 @@ class JiraTimer:
             else:
                 fail_flag = True
 
+            # Validate task
+            task = self.verify_task(status["task"])
+            if task != False:
+                self.iteration = task
+            else:
+                fail_flag = True
+
             # Validate state
             state = self.verify_state(status["state"])
             if state != False:
@@ -200,6 +254,8 @@ class JiraTimer:
             else:
                 fail_flag = True
 
+        except KeyError:
+            logging.warning(f"{self.name}: Malformed status file. Aborting status restore")
         except:
             raise Exception(f"Unable to read status {self.name} status file")
         finally:
@@ -214,6 +270,7 @@ class JiraTimer:
                     "time_end": self.time_end,
                     "time_start": self.time_start,
                     "iteration": self.iteration,
+                    "task": self.task,
                     "state": {
                         "name": str(self.state),
                         "properties": self.state.get_properties()
@@ -261,7 +318,6 @@ class JiraTimer:
             self.task["task_time"] = now - self.time_start
 
         if now >= self.time_end and str(self.state) in ["Working", "BreakLong", "BreakShort"]:
-            self.log_work()
             self.state.next(self)
         else:
             self.state.update(self)
