@@ -96,22 +96,22 @@ class Working(JiraState):
 
     def next(self, timer):
         timer.iteration += 1
-        now = int(datetime.now().strftime("%s")) 
 
         if timer.iteration > timer.sessions:
             timer.iteration = 1
-            time_end = now + timer.time_break_long
+            duration = timer.time_break_long
             timer.state = BreakLong(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a long break")
         else:
-            time_end = now + timer.time_break_short
+            duration = timer.time_break_short
             timer.state = BreakShort(timer)
             TmuxHelper.popup_create(timer.name, "Session finished, take a short break")
 
         TmuxHelper.popup_create(f"Add comment for {timer.task}", f"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py COMMENT --timer {timer.name} --value \"'$response'\"", height=30, input=True)
 
+        now = int(datetime.now().strftime("%s")) 
         timer.time_start = now
-        timer.time_end = time_end
+        timer.time_end = now + duration
 
     def update_status(self, timer):
         now = int(datetime.now().strftime("%s")) 
@@ -138,12 +138,13 @@ class BreakLong(JiraState):
 
 
     def next(self, timer):
+        TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
+
         now = int(datetime.now().strftime("%s")) 
         timer.time_end = now + timer.time_work
         timer.time_start = now
 
         timer.state = Working(timer)
-        TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
 
 
     def update_status(self, timer):
@@ -172,12 +173,13 @@ class BreakShort(JiraState):
 
 
     def next(self, timer):
+        TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
+
         now = int(datetime.now().strftime("%s")) 
         timer.time_end = now + timer.time_work
         timer.time_start = now
 
         timer.state = Working(timer)
-        TmuxHelper.popup_create(timer.name, "Break finished, get back to work")
 
     
     def update_status(self, timer):
