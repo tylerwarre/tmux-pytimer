@@ -1,79 +1,109 @@
 #!/home/m83393/.tmux/tmux-venv/bin/python3
 
 import os
+import asyncio
+import argparse
 import socket
-import signal
 import logging
 import datetime
 import traceback
+import multiprocessing
 from pytimer import TmuxHelper
 from pytimer.timers import JiraTimer
 
-class PyTimerDaemon:
-    CMDS = ["LIST", "STATUS"]
-    PATH = "/tmp/tmux-pytimer/daemon"
+SOCK_PATH = "/tmp/tmux-pytimer/daemon/pytimer.sock"
+COMMANDS = multiprocessing.Queue()
+TMUX_STATUS_KEY = "@pytimer-status"
 
-    def __init__(self):
-        self.init_logging(log_level=logging.DEBUG)
+def init_logging(log_level=logging.INFO):
+    if os.path.exists("/tmp/tmux-pytimer/daemon/") != True:
+        os.makedirs("/tmp/tmux-pytimer/daemon/")
 
-        if os.path.exists(f"{self.PATH}/pytimer.sock"):
-            self.check_sock_alive(f"{self.PATH}/pytimer.sock")
-        else:
-            os.makedirs(self.PATH, exist_ok=True)
+    logFormatter = logging.Formatter("[%(levelname)-8s]\t%(message)s")
 
-        # Define timers
-        #pomodoro = PomodoroTimer()
-        jira = JiraTimer(verify_tls=False)
-        jira2 = JiraTimer(priority=100, name="Test", sessions=1, verify_tls=False)
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(log_level)
+
+    fileHandler = logging.FileHandler(f"/tmp/tmux-pytimer/daemon/daemon.log")
+    fileHandler.setFormatter(logFormatter)
+    rootLogger.addHandler(fileHandler)
+
+    logging.info(f"Logging started {datetime.datetime.now()}")
+
+
+def check_sock_alive():
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+    try:
+        client.connect(SOCK_PATH)
+
+        client.close()
+    except ConnectionRefusedError:
+        logging.info("Dead socket found, starting up server")
+        return
+
+    logging.warning("Daemon already running. Aborting duplicate startup")
+    os._exit(0)
+
+class CmdHandler:
+    def __init__(self) -> None:
+        self.cmds = ["LIST", "STATUS", "STOP"]
 
         self.timers = {
-            jira.name: jira,
-            jira2.name: jira2
+            "Jira": JiraTimer(verify_tls=False, name="Jira"),
+            "Test": JiraTimer(priority=100, name="Test", sessions=1, verify_tls=False)
         }
 
 
-    def init_logging(self, log_level=logging.INFO):
-        if os.path.exists("/tmp/tmux-pytimer/daemon/") != True:
-            os.makedirs("/tmp/tmux-pytimer/daemon/")
+    def start(self):
+        multiprocessing.Process(target=self.cmd_handler).start()
 
-        logFormatter = logging.Formatter("[%(levelname)-8s]\t%(message)s")
+    def cmd_handler(self):
+        while True:
+            cmd = COMMANDS.get()
+            logging.debug(f"Processing: {cmd}")
+            cmd = self.validate_cmd(cmd)
 
-        rootLogger = logging.getLogger()
-        rootLogger.setLevel(log_level)
+            if type(cmd) != dict:
+                continue
 
-        fileHandler = logging.FileHandler(f"/tmp/tmux-pytimer/daemon/daemon.log")
-        fileHandler.setFormatter(logFormatter)
-        rootLogger.addHandler(fileHandler)
+            if "timer" in cmd:
+                self.timer_cmd_handler(cmd)
+            elif "cmd" in cmd:
+                self.daemon_cmd_handler(cmd)
+            else:
+                logging.warning(f"Invalid cmd: {cmd}")
+                continue
 
-        logging.info(f"Logging started {datetime.datetime.now()}")
+    def daemon_cmd_handler(self, cmd):
+        if cmd["cmd"] == "LIST":
+            self.daemon_list()
+        elif cmd["cmd"] == "STATUS":
+            self.daemon_status()
+        elif cmd["cmd"] == "STOP":
+            self.daemon_stop()
+        else:
+            logging.warning(f"{cmd['cmd']} is a valid daemon command, but it is not implemented")
 
-    def check_sock_alive(self, socket_path):
-        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
-        try:
-            client.connect(socket_path)
-
-            client.close()
-        except ConnectionRefusedError:
-            logging.info("Dead socket found, starting up server")
-            return
-
-        logging.warning("Daemon already running. Aborting duplicate startup")
+    def daemon_stop(self):
+        logging.info(f"Received STOP command. Quiting...")
+        os.unlink(SOCK_PATH)
+        logging.info(f"Logging ended {datetime.datetime.now()}")
         os._exit(0)
 
 
-    def handle_daemon_command(self, cmd) -> list:
-        response = ["ACK"]
-        logging.info(f"Received daemon command: {cmd['action']}")
+    def daemon_list(self):
+        options = []
+        for timer in list(self.timers.values()):
+            if timer.state.enabled:
+                options.append(TmuxHelper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
+            else:
+                options.append(TmuxHelper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name}\""))
 
-        if cmd["action"] == "LIST":
-            self.daemon_list()
-        elif cmd["action"] == "STATUS":
-            response.insert(0, self.daemon_status())
-        else:
-            logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
+        TmuxHelper.menu_create("Timers", "R", "S", options)
 
-        return response
+        return
 
 
     def daemon_status(self):
@@ -90,184 +120,140 @@ class PyTimerDaemon:
                 status += result
 
         logging.debug(f"Updating status: {status}")
-        return status
-
-
-    def daemon_list(self):
-        options = []
-        for timer in list(self.timers.values()):
-            if timer.state.enabled:
-                options.append(TmuxHelper.menu_add_option(f"* {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
-            else:
-                options.append(TmuxHelper.menu_add_option(f"  {timer.name}", "", f"run-shell \"{TmuxHelper.get_plugin_dir()}/scripts/tmux_pytimer.py MENU --timer {timer.name} --blocking\""))
-
-        TmuxHelper.menu_create("Timers", "R", "S", options)
-
+        TmuxHelper.set_tmux_option(TMUX_STATUS_KEY, status)
         return
 
 
-    def daemon_stop(self):
-        logging.info(f"Received STOP command. Quiting...")
-        os.unlink(f"{self.PATH}/pytimer.sock")
-        logging.info(f"Logging ended {datetime.datetime.now()}")
-        os._exit(0)
-
-
-    def handle_timer_command(self, cmd) -> list:
-        response = ["ACK"]
-        logging.info(f"Received timer command: {cmd['action']} for {cmd['timer']}")
-
-        if cmd["action"] == "MENU":
+    def timer_cmd_handler(self, cmd):
+        if cmd["cmd"] == "MENU":
             self.timers[cmd['timer']].gen_menu()
-        elif cmd["action"] == "TASKS":
+        elif cmd["cmd"] == "TASKS":
             self.timers[cmd['timer']].gen_tickets_menu()
-        elif cmd["action"] == "START":
+        elif cmd["cmd"] == "START":
             self.timers[cmd['timer']].start()
-        elif cmd["action"] == "STOP":
+        elif cmd["cmd"] == "STOP":
             self.timers[cmd['timer']].stop()
-        elif cmd["action"] == "PAUSE":
+        elif cmd["cmd"] == "PAUSE":
             self.timers[cmd['timer']].pause()
-        elif cmd["action"] == "RESUME":
+        elif cmd["cmd"] == "RESUME":
             self.timers[cmd['timer']].resume()
-        elif cmd["action"] == "SET":
+        elif cmd["cmd"] == "SET":
             self.timers[cmd['timer']].set_task(cmd['value'])
+        elif cmd["cmd"] == "COMMENT":
+            self.timers[cmd['timer']].comment(cmd['value'])
         else:
-            logging.warning(f"{cmd['action']} is a valid daemon command, but it is not implemented")
-
-        return response
+            logging.warning(f"{cmd['cmd']} is a valid daemon command, but it is not implemented")
 
 
-    def validate_command(self, data):
-        try:
-            data = data.decode()
-        except Exception as e:
-            logging.warning(f"[{e.__class__.__name__}] Unable to decode message")
-            return None
+    def validate_cmd(self, cmd) -> dict|bool:
+        value = None
+        if cmd[-1] == "'":
+            try:
+                pos = cmd.index("'")
+                value = cmd[pos+1:-1]
+                cmd = cmd[:pos-1]
+            except ValueError:
+                logging.warning(f"Unclosed quotes in {cmd}")
+                return False
 
-        try:
-            logging.debug(f"Received: {data}")
-            data = data.split(" ")
-            if "BLOCK" in data:
-                data.remove("BLOCK")
-                block = True
+        cmd = cmd.split(" ")
+
+        if value != None:
+            cmd.append(value)
+
+        # daemon command
+        if len(cmd) == 1:
+            cmd = cmd[0]
+            if cmd not in self.cmds:
+                logging.warning(f"{cmd} is not a valid daemon command")
+                return False
+
+            cmd = {"cmd": cmd}
+            return cmd
+        # timer command
+        elif len(cmd) >= 2:
+            if len(cmd) > 3:
+                logging.warning(f"Timer commands can not have more than 3 arguments, "\
+                        f"but {len(cmd)} provided.\n{cmd}")
+                return False
+            elif len(cmd) == 2:
+                value = None
+                timer = cmd[1]
+                cmd = cmd[0]
             else:
-                block = False
+                value = cmd[2]
+                timer = cmd[1]
+                cmd = cmd[0]
 
-            timer_names = list(self.timers.keys())
+            if timer not in self.timers:
+                logging.warning(f"{timer} is not a timer instance")
+                return False
 
-            if len(data) > 3:
-                logging.warning(f"{len(data)} arguments provided.\nDaemon commands require one positional argument ([CMD]) and Timer commands require two positional arguments ([CMD] [TIMER]).\n{data}")
-                return None
-            # Daemon Command
-            elif len(data) == 1:
-                cmd = data[0]
-                if cmd not in self.CMDS:
-                    logging.warning(f"{cmd} is not a valid daemon command. Valid daemon commands are: {self.CMDS}")
-                    return None
+            if cmd not in self.timers[timer].cmds:
+                logging.warning(f"{cmd} is not a valid timer command for {timer}")
+                return False
 
-                return {"type": "daemon", "cmd": {"action": cmd, "blocking": block}}
-            # Timer Command
-            elif len(data) >= 2:
-                cmd = data[0]
-                timer_name = data[1]
-                if len(data) == 3:
-                    value = data[2]
-                else:
-                    value = None
-
-                if timer_name not in timer_names:
-                    logging.warning(f"There is no timer named {timer_name}. Valid timers are: {timer_names}")
-                    return None
-
-                for timer in list(self.timers.values()):
-                    if timer.name == timer_name:
-                        if cmd not in timer.cmds:
-                            logging.warning(f"{cmd} is not a valid command for {timer.name}. Valid commands for {timer.name} are: {timer.cmds}")
-                        else:
-                            if len(data) == 2:
-                                return {"type": "timer", "cmd": {"action": cmd, "timer": timer_name, "blocking": block}}
-                            elif value != None:
-                                return {"type": "timer", "cmd": {"action": cmd, "timer": timer_name, "value": value, "blocking": block}}
-
-                return None
-        except Exception as e:
-            logging.warning(f"[{e.__class__.__name__}] Unable to decode message")
+            cmd = {"cmd": cmd, "timer": timer, "value": value}
+            return cmd
+        else:
+            logging.warning(f"Invalid cmd: {cmd}")
+            return False
 
 
-    def listen(self, server):
-        connection, client_address = server.accept()
+            
+class SockDaemon:
+    def __init__(self):
+        pass
 
-        try:
-            logging.debug(f"Connection from {str(connection).split(', ')[0][-4:]}")
+    def start(self):
+        asyncio.run(self.sock_server())
 
-            while True:
-                data = connection.recv(1024)
-                if not data:
-                    break
+    async def sock_handler(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        msg = (await reader.read(1024))
 
-                command = self.validate_command(data)
-                if command == None:
-                    break
+        if not msg:
+            writer.close()
+            return
 
-                if command["cmd"]["blocking"]:
-                    message = f"SYN ACK;"
-                    connection.sendall(message.encode())
-                    logging.debug(f"Sent: {message}")
+        msg = msg.decode().rstrip()
+        cmds = msg.split(";")
+        cmds = cmds[:-1]
 
-                if command["type"] == "daemon":
-                    response = self.handle_daemon_command(command["cmd"])
-                elif command["type"] == "timer":
-                    response = self.handle_timer_command(command["cmd"])
-                else:
-                    response = ["ACK"]
-                    logging.warning(f"Unknown command type {command['type']}.\n{command}")
+        for cmd in cmds:
+            COMMANDS.put(cmd)
+            logging.debug(f"Received: {cmd}")
 
-                for msg in response:
-                    msg += ";"
-                    connection.sendall(msg.encode())
-                    logging.debug(f"Sent: {msg[:-1]}")
-
-            connection.close()
-        except Exception:
-            logging.critical(f"Encountered the folloing error when receiving data: {traceback.format_exc()}")
-            connection.close()
-            self.daemon_stop()
+        writer.write("ACK".encode())
+        writer.close()
 
 
-def signal_handler(sig, frame):
-    logging.info(f"Received {signal.Signals(sig).name}. Quiting...")
-    os.unlink("/tmp/tmux-pytimer/daemon/pytimer.sock")
-    logging.info(f"Logging ended {datetime.datetime.now()}")
-    os._exit(0)
-
+    async def sock_server(self):
+        server = await asyncio.start_unix_server(self.sock_handler, SOCK_PATH)
+        async with server:
+            await server.serve_forever()
 
 def main():
-    daemon = PyTimerDaemon()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
 
-    catchable_sigs = set(signal.Signals) - {signal.SIGKILL, signal.SIGSTOP, signal.SIGCHLD, signal.SIGINT}
-    for sig in catchable_sigs:
-        signal.signal(sig, signal_handler)
+    if args.debug:
+        init_logging(log_level=logging.DEBUG)
+    else:
+        init_logging()
+        if os.fork():
+            # Tell the parent process to exit
+            os._exit(0)
 
-    try:
-        os.unlink(f"{daemon.PATH}/pytimer.sock")
-    except FileNotFoundError:
-        pass
-    except OSError:
-        logging.critical("Unable to remove old socket")
-        os._exit(0)
-
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-    server.bind(f"{daemon.PATH}/pytimer.sock")
-    server.listen(1)
-    logging.info(f"Daemon listening on {daemon.PATH}/pytimer.sock")
-
-    if os.fork():
-        # Tell the parent process to exit
-        os._exit(0)
-
-    while True:
-        daemon.listen(server)
+    if os.path.exists(SOCK_PATH):
+        check_sock_alive()
+    else:
+        dir_path = SOCK_PATH.split("/")[:-1]
+        dir_path = "/".join(dir_path) + "/"
+        os.makedirs(dir_path, exist_ok=True)
+    
+    CmdHandler().start()
+    SockDaemon().start()
 
 if __name__ == "__main__":
     main()

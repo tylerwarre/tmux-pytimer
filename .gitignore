@@ -3,3 +3,4 @@ pytimer_pckg/dist/
 pytimer_pckg/pytimer.egg-info/
 scripts/jira.key
 jira/
+.vscode/
