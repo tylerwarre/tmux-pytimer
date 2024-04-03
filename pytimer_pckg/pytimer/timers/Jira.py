@@ -10,26 +10,19 @@ class JiraTimer:
     # TODO implement loading from file
     # TODO add timeout to popup so that timers continue if away
         # TODO Add a carry_over time property that uses the exta time passed the session in a future break or subtract from a future work session. Maybe use the tmux display-popup -E option.
-    def __init__(self, name="Jira", priority=0, time_work=60, 
-                 time_break_short=5, time_break_long=60, sessions=3, iteration=1, notify=True, verify_tls=True):
-        self.name = name
-        self.priority = priority
-        self.time_work = time_work*60
-        self.time_break_short = time_break_short*60
-        self.time_break_long = time_break_long*60
+    def __init__(self, config_path):
         self.time_end = 0
         self.time_start = 0
-        self.sessions = sessions
-        self.iteration = iteration
-        self.notify = notify
+        self.iteration = 1
         self.cmds = ["ACK", "MENU", "START", "STOP", "PAUSE", "RESUME", "SET", "TASKS", "COMMENT"]
         self.task = {"key": None, "task_time": 0, "charge_code": None}
-        self.verify_tls=verify_tls
+
+        self.validate_config(config_path)
 
         os.makedirs(f"{TmuxHelper.get_plugin_dir()}/jira", exist_ok=True)
 
         with open(f"{TmuxHelper.get_plugin_dir()}/scripts/jira.key", "r") as f:
-            self.jira = Jira(f.read().rstrip(), verify_tls=verify_tls)
+            self.jira = Jira(f.read().rstrip(), verify_tls=self.verify_tls)
 
         if os.path.exists(f"/tmp/tmux-pytimer/{self.name}.json"):
             self.read_status()
@@ -37,6 +30,63 @@ class JiraTimer:
             self.state = JiraStates.Idle(self)
 
         self.write_status()
+
+    def validate_config(self, config_path):
+        keys = {
+            "name": str,
+            "priority": int,
+            "time_work": int,
+            "time_break_short": int,
+            "time_break_long": int,
+            "sessions": int,
+            "notify": bool,
+            "verify_tls": bool
+        } 
+
+        if not os.path.exists(config_path):
+            return False
+
+        with open(config_path, "r") as f:
+            config = json.load(f)
+
+            for key, prop_type in keys.items():
+                if key not in config:
+                    return False
+                
+                if prop_type == str:
+                    if type(config[key]) != prop_type:
+                        return False
+                elif prop_type == int:
+                    if type(config[key]) != prop_type:
+                        return False
+
+                    if config[key] < 0:
+                        return False
+                elif prop_type == bool:
+                    if type(config[key]) != int:
+                        return False
+
+                    if config[key] < 0 or config[key] > 1:
+                        return False
+
+                    config[key] = bool(config[key])
+                else:
+                    return False
+
+            try:
+                self.name = config["name"]
+                self.priority = config["priority"]
+                self.time_work = config["time_work"] * 60
+                self.time_break_shrot = config["time_break_short"] * 60
+                self.time_break_long = config["time_break_long"] * 60
+                self.sessions = config["sessions"]
+                self.notify = config["notify"]
+                self.verify_tls = config["verify_tls"]
+            except Exception as e:
+                return False
+
+            return True
+
 
     def get_status(self) -> str: 
         return self.state.status

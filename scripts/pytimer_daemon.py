@@ -49,6 +49,9 @@ class CmdHandler:
     def __init__(self) -> None:
         self.cmds = ["LIST", "STATUS", "STOP"]
 
+        if not os.path.exists(f"{TmuxHelper.get_plugin_dir()}timers"):
+            raise Exception("Timer config directory does not exist")
+
         self.timers = {
             "Jira": JiraTimer(verify_tls=False, name="Jira"),
             "Test": JiraTimer(priority=100, name="Test", sessions=1, verify_tls=False)

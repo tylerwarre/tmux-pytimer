@@ -1,0 +1,10 @@
+{
+    "name": "Jira",
+    "priority": 0,
+    "time_work": 60,
+    "time_break_short": 5,
+    "time_break_long": 60,
+    "sessions": 3,
+    "notify": 1,
+    "verify_tls": 0
+}
